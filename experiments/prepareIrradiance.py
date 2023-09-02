@@ -19,7 +19,8 @@ from tools.EUV.fism2_process import read_euv_csv_file
 from tools.processIrradiances import obtainFism1
 from tools.processIrradiances import obtainFism2
 from tools.processIrradiances import obtainSEE, rebinSEE
-from tools import processIndices #, spectralAnalysis
+from tools.processIrradiances import obtainNRLSSIS2, rebinNRL
+from tools import toolbox #, spectralAnalysis
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -38,9 +39,9 @@ if __name__=="__main__":
     timesData = '../solarIndices/F107/F107times.pkl'
     F107Data = '../solarIndices/F107/F107vals.pkl'
     F107AveData = '../solarIndices/F107/F107averageVals.pkl'
-    times = processIndices.loadPickle(timesData)
-    F107 = processIndices.loadPickle(F107Data)
-    F107A = processIndices.loadPickle(F107AveData)
+    times = toolbox.loadPickle(timesData)
+    F107 = toolbox.loadPickle(F107Data)
+    F107A = toolbox.loadPickle(F107AveData)
     # F10.7 data extends between 1947-02-14; 12:00 to 2008-02-03; 12:00.
 
     # NEUVAC Results:
@@ -63,8 +64,10 @@ if __name__=="__main__":
     myIrrTimesFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59, saveLoc=fism2_spectra_folder)
     # FISM2 data extends between 1947-02-14; 00:00 and 2023-08-29; 00:00.
 
-    # TODO: NRLSSI2 Results:
-
+    # NRLSSI2 Results:
+    NRLFile = '../empiricalModels/irradiances/NRLSSI2/ssi_v02r01_daily_s18820101_e20221231_c20230123.nc'
+    datetimesNRL, wavelengthsNRL, bandwidthsNRL, irradiancesNRL, uncertaintiesNRL = obtainNRLSSIS2(NRLFile)
+    rebinnedNRLData = rebinNRL(irradiancesNRL, euv_data_59, wavelengthsNRL, bandwidthsNRL)
 
     # TODO: INCLUDE SOLAR2000 Results.
 
@@ -76,5 +79,5 @@ if __name__=="__main__":
 
     # TODO: Perform the necessary conversions between spectral FLUX and spectral IRRADIANCE.
 
-    print('Analysis complete.')
+    print('Data preparation complete.')
 #-----------------------------------------------------------------------------------------------------------------------

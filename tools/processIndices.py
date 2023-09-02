@@ -7,7 +7,7 @@ import numpy as np
 import sys
 import matplotlib
 matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -90,7 +90,7 @@ if __name__=="__main__":
     # Compute the centered rolling 81-day average of F10.7:
     averagedF107 = rollingAverage(cleanedF107, window_length=81)
     # Plot as a sanity-check:
-    plt.figure(); plt.plot(cleanedTimes, cleanedF107); plt.plot(cleanedTimes, averagedF107); plt.show()
+    # plt.figure(); plt.plot(cleanedTimes, cleanedF107); plt.plot(cleanedTimes, averagedF107); plt.show()
     # Save the data to pickle files:
     savePickle(cleanedTimes, saveLoc+'F107times.pkl')
     savePickle(cleanedF107, saveLoc+'F107vals.pkl')
