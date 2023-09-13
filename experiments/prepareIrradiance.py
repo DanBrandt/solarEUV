@@ -33,6 +33,49 @@ euv_folder = '../tools/EUV/'
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# Constants
+euvacTable = np.array([
+    [1, 50, 100, 1.200, 1.0017e-2],
+    [2, 100, 150, 0.450, 7.1250e-3],
+    [3, 150, 200, 4.800, 1.3375e-2],
+    [4, 200, 250, 3.100, 1.9450e-2],
+    [5, 256.32, 256.32, 0.460, 2.7750e-3],
+    [6, 284.15, 284.15, 0.210, 1.3768e-1],
+    [7, 250, 300, 1.679, 2.6467e-2],
+    [8, 303.31, 303.31, 0.800, 2.5000e-2],
+    [9, 303.78, 303.78, 6.900, 3.3333e-3],
+    [10, 300, 350, 0.965, 2.2450e-2],
+    [11, 368.07, 368.07, 0.650, 6.5917e-3],
+    [12, 350, 400, 0.314, 3.6542e-2],
+    [13, 400, 450, 0.383, 7.4083e-3],
+    [14, 465.22, 465.22, 0.290, 7.4917e-3],
+    [15, 450, 500, 0.285, 2.0225e-2],
+    [16, 500, 550, 0.452, 8.7583e-3],
+    [17, 554.37, 554.37, 0.720, 3.2667e-3],
+    [18, 584.33, 584.33, .270, 5.1583e-3],
+    [19, 550, 600, 0.357, 3.6583e-3],
+    [20, 609.76, 609.76, 0.530, 1.6175e-2],
+    [21, 629.73, 629.73, 1.590, 3.3250e-3],
+    [22, 600, 650, 0.342, 1.1800e-2],
+    [23, 650, 700, 0.230, 4.2667e-3],
+    [24, 703.36, 703.36, 0.360, 3.0417e-3],
+    [25, 700, 750, 0.141, 4.7500e-3],
+    [26, 765.15, 765.15, 0.170, 3.8500e-3],
+    [27, 770.41, 770.41, 0.260, 1.2808e-2],
+    [28, 789.36, 789.36, 0.702, 3.2750e-3],
+    [29, 750, 800, 0.758, 4.7667e-3],
+    [30, 800, 850, 1.625, 4.8167e-3],
+    [31, 850, 900, 3.537, 5.6750e-3],
+    [32, 900, 950, 3.000, 4.9833e-3],
+    [33, 977.02, 977.02, 4.400, 3.9417e-3],
+    [34, 950, 1000, 1.475, 4.4167e-3],
+    [35, 1025.72, 1025.72, 3.500, 5.1833e-3],
+    [36, 1031.91, 1031.91, 2.100, 5.2833e-3],
+    [37, 1000, 1050, 2.467, 4.3750e-3]
+    ])
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
 # Execution
 if __name__=="__main__":
     # Load in F10.7 data:
@@ -44,6 +87,8 @@ if __name__=="__main__":
     F107A = toolbox.loadPickle(F107AveData)
     # F10.7 data extends between 1947-02-14; 12:00 to 2008-02-03; 12:00.
 
+    # NOTE: NEUVAC, EUVAC, and HEUVAC return spectral fluxes, and need to be converted to spectral irradiances.
+
     # NEUVAC Results:
     neuvacRes = neuvac.neuvacEUV(F107, F107A)
 
@@ -52,6 +97,67 @@ if __name__=="__main__":
 
     # HEUVAC Results:
     heuvacRes = heuvac.heuvac(F107, F107A)
+
+    # Correction factors (first attempt):
+    # Band 0: 1e0
+    # Band 1: 1e4
+    # Band 2: 1e3
+    # Band 3: 1e4
+    # Band 4: 1e1
+    # Band 5: 1e2
+    # Band 6: 1e1
+    # Band 7: 1e0
+    # Band 8: 1e1
+    # Band 9: 1e-1
+    # Band 10: 1e-1
+    # Band 11: 1e0
+    # Band 12: 1e-1
+    # Band 13: 1e-1
+    # Band 14: 1e-1
+    # Band 15: 1e-1
+    # Band 16: 1e-1
+    # Band 17: 1e0
+    # Band 18: 1e-1
+    # Band 19: 1e0
+    # Band 20: 1e0
+    # Band 21: 1e0
+    # Band 22: 1e-1
+    # Band 23: 1e0
+    # Band 24: 1e-1
+    # Band 25: 1e-1
+    # Band 26: 1e0
+    # Band 27: 1e0
+    # Band 28: 1e-1
+    # Band 29: 1e0
+    # Band 30: 1e1
+    # Band 31: 1e1
+    # Band 32: 1e1
+    # Band 33: 1e1
+    # Band 34: 1e0
+    # Band 35: 1e0
+    # Band 36: 1e0
+
+    # 3D plotting of NEUVAC, EUVAC, and HEUVAC:
+    bandIndicesNEUVAC = np.linspace(0, neuvacRes.shape[1], neuvacRes.shape[1]+1)
+    bandIndicesEUVAC = np.linspace(0, euvacRes.shape[1], euvacRes.shape[1]+1)
+    # fig = plt.figure()
+    # ax = fig.add_subplot(111, projection='3d')
+    # # NEUVAC
+    # for i in range(0, 37): # (neuvacRes.shape[1]):
+    #     xvals = np.full_like(neuvacRes[:, i], fill_value=bandIndicesNEUVAC[i])
+    #     yvals = np.linspace(0, neuvacRes.shape[0]-1, neuvacRes.shape[0])
+    #     plt.plot(xvals, yvals, neuvacRes[:, i]/1e1, 'b-')
+    # # EUVAC
+    # for i in range(euvacRes.shape[1]): # (neuvacRes.shape[1]):
+    #     xvals = np.full_like(euvacRes[:, i], fill_value=bandIndicesEUVAC[i])
+    #     yvals = np.linspace(0, euvacRes.shape[0]-1, euvacRes.shape[0])
+    #     plt.plot(xvals, yvals, euvacRes[:, i], 'g-')
+    # # HEUVAC
+    # for i in range(heuvacRes.shape[1]):  # (neuvacRes.shape[1]):
+    #     xvals = np.full_like(heuvacRes[:, i], fill_value=bandIndicesEUVAC[i])
+    #     yvals = np.linspace(0, heuvacRes.shape[0] - 1, heuvacRes.shape[0])
+    #     plt.plot(xvals, yvals, heuvacRes[:, i], 'r-')
+    # plt.show()
 
     # FISM1 Results:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
@@ -76,6 +182,37 @@ if __name__=="__main__":
     myIrrTimesSEE, mySEEWavelengths, myIrrDataAllSEE, myIrrUncAllSEE = obtainSEE(seeFile)
     rebinnedIrrData = rebinSEE(myIrrDataAllSEE, euv_data_59)
     # TIMED/SEE data extends between 2002-01-22;12:00 and 2023-08-27; 12:00.
+
+    # TODO: Subset FISM1, FISM2, and NRLSSI2 to correspond (as much as possible) to the N/H/EUVAC times:
+    validFISM2inds = np.where((myIrrTimesFISM2 >= times[0]) & (myIrrTimesFISM2 <= times[-1]))[0]
+    validSEEinds = np.where((myIrrTimesSEE >= times[0]) & (myIrrTimesSEE <= times[-1]))[0]
+
+    # 2D plotting of NEUVAC, EUVAC, and HEUVAC:
+    from tools.spectralAnalysis import spectralIrradiance
+    # band = 7
+    # bottomFactor = 1e-1
+    # topFactor = 1e1
+    mids = 0.5*(euv_data_59['long'] + euv_data_59['short'])
+    for i in range(37): # (band, band+1):
+        currentWavelength = np.mean([euvacTable[i][1], euvacTable[i][2]])
+        dWave = euvacTable[i][2] - euvacTable[i][1]
+        fig = plt.figure(figsize=(12,6))
+        ax = fig.add_subplot(111)
+        ax.plot(times, spectralIrradiance(neuvacRes[:, i], currentWavelength, dWavelength=dWave), 'b-', label='NEUVAC')
+        # ax.plot(neuvacRes[:, i] * bottomFactor, 'b--')
+        # ax.plot(neuvacRes[:, i] * topFactor, 'b:')
+        ax.plot(times, spectralIrradiance(euvacRes[:, i], currentWavelength, dWavelength=dWave), 'g-', label='EUVAC')
+        ax.plot(times, spectralIrradiance(heuvacRes[:, i], currentWavelength, dWavelength=dWave), 'r-', label='HEUVAC')
+        # FISM2:
+        #fismVals = spectralFlux(myIrrDataAllFISM2[:, i][validFISM2inds], currentWavelength, dWavelength=dWave)
+        fismVals = myIrrDataAllFISM2[:, i][validFISM2inds]
+        ax.plot(myIrrTimesFISM2[validFISM2inds], fismVals, 'c-', label='FISM2')
+        ax.legend(loc='best')
+        ax.set_title('Solar EUV Irradiance at '+str(mids[i])+' Angstroms')
+        ax.set_xlabel('Time')
+        ax.set_ylabel('Solar Irradiance (W/m$^2$/nm)')
+        plt.show()
+        plt.savefig(figures_directory+'Irradiance_Band_'+str(i+1)+'.png')
 
     # TODO: Perform the necessary conversions between spectral FLUX and spectral IRRADIANCE.
 

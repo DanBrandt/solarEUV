@@ -100,6 +100,8 @@ def heuvac(F107, F107A):
             if photonFlux < 0:
                 photonFlux = 0
         heuvacFlux[:, i] = photonFlux / (1e-4) # Divide by a factor of 1e-4 to convert from cm^-2 s^-1 to m^-2 s^-1
+    # Flip the results before they are returned:
+    heuvacFlux = np.flip(heuvacFlux, 1)
     return heuvacFlux
 
 #-----------------------------------------------------------------------------------------------------------------------

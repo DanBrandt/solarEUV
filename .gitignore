@@ -1,3 +1,4 @@
+.idea/
 empiricalModels/irradiances
 measurements
 solarIndices
@@ -6,6 +7,7 @@ experiments/myIrrFISM2.pkl
 experiments/myIrrUncFISM2.pkl
 experiments/myTimesFISM1.pkl
 experiments/myTimesFISM2.pkl
+experiments/Figures/
 tools/myIrrFISM1.pkl
 tools/myIrrFISM2.pkl
 tools/myIrrUncFISM2.pkl

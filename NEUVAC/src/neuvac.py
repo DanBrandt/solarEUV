@@ -11,6 +11,11 @@ import numpy as np
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# Local
+from tools.spectralAnalysis import spectralIrradiance
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
 # Waves Table
 # Format: 0-Min, 1-Max, 2-S_1i, 3-S_Ai, 4-S_Di, 5-I_i, 6-Pi, 7-Ai
 waveTable = np.array([
@@ -87,12 +92,14 @@ def neuvacEUV(f107, f107a, bandLim=False):
         81-day center-averaged F10.7 values; must be the same length as f107.
     :param bandLim: bool
         If True, limits the outputted bands to just those 37 used by EUVAC.
-    :return: euvFlux: ndarray
+    :return euvFlux: ndarray
         A nxm ndarray where n is the number of EUV flux values and m is the number of wavelength bands.
+    :return euvIrradiance: ndarray
+        A nxm ndarray where n is the number of EUV irradiance values and m is the number of wavelength bands.
     """
     solarFlux = np.zeros((len(f107), waveTable.shape[0]))
     euvFlux = np.zeros_like(solarFlux)
-    testArray = np.zeros_like(euvFlux)
+    euvIrradiance = np.zeros_like(euvFlux)
     # Gather the relevant data:
     RidleySlopes = waveTable[:, 2:5]
     RidleyPowers = waveTable[:, 6:]
@@ -110,9 +117,8 @@ def neuvacEUV(f107, f107a, bandLim=False):
             wvavg = (WAVEL[j] + WAVES[j])/2.
             euvFlux[i, k] = solarFlux[i, k] * wvavg * 1e-10 / (6.626e-34 * 2.998e8) # / 10.
             # Proper formal calculation of irradiance:
-            # dWave = WAVEL[j] - WAVES[j]
-            # irradiance[i, j] = spectralIrradiance(flux[i, j], wvavg, dWave)
-            testArray[i, k] = waveTable[j, 0]
+            dWave = WAVEL[j] - WAVES[j]
+            euvIrradiance[i, k] = spectralIrradiance(euvFlux[i, j], wvavg, dWave) # waveTable[j, 0]
             k += 1
     if bandLim: # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
         return euvFlux[:, 7:44] #15:52]

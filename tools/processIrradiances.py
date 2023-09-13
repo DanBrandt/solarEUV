@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
 from tools.EUV.fism2_process import read_euv_csv_file
-from tools.EUV.fism2_process import isolate_fism
+from tools.EUV.fism2_process import isolate_fism, rebin_fism
 from tools.toolbox import find_nearest
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -129,8 +129,8 @@ def obtainFism2(myFism2File, euv_bins, saveLoc=None):
             datetimes.append(currentDatetime)
         datetimes = np.asarray(datetimes)
         # Performing the rebinning:
-        new_fism2_irr, fism2_ave_wave = isolate_fism(np.asarray(wavelength)*10, np.asarray(irradiance), euv_bins)
-        new_fism2_unc, fism2_ave_wave = isolate_fism(np.asarray(wavelength)*10, np.asarray(uncertainty), euv_bins)
+        new_fism2_irr, fism2_ave_wave = rebin_fism(np.asarray(wavelength)*10, np.asarray(irradiance), euv_bins) # isolate_fism
+        new_fism2_unc, fism2_ave_wave = rebin_fism(np.asarray(wavelength)*10, np.asarray(uncertainty), euv_bins) # isolate_fism
         # Save the data:
         if saveLoc != None:
             myTimePkl = open(myTimePickleFile, 'wb')
