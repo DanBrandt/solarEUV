@@ -9,7 +9,10 @@ from sklearn.impute import SimpleImputer
 from datetime import datetime, timedelta
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import InterpolatedUnivariateSpline
-
+import matplotlib
+matplotlib.use('Qt5Agg')
+import matplotlib.pyplot as plt
+from scipy.stats import pearsonr
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions
 def savePickle(data, pickleFilename):
@@ -256,3 +259,148 @@ def rollingAverage(myData, window_length=1, impute_edges=True):
         myDataframe['Rolling'][-window_length:] = myDataframe['Var'][-window_length:]
     rolled = myDataframe['Rolling'].values
     return rolled
+
+def rollingStd(myData, window_length=2, axis=-1):
+    """
+    Given some data, compute the rolling standard deviation. If the data is two dimensional, compute the rolling
+    standard deviation along a specific axis of the data (specified by the user).
+    :param myData: arraylike
+        The data over which to compute the rolling average.
+    :param window_length: int
+        The size of the window over which to average. Default is 2.
+    :param axis: int
+        For 2D data, the axis along which to compute the rolling standard deviation. Defaults is -1.
+    :return stdData: ndarray
+        The rolling standard deviation values of the data.
+    """
+    # Define the generic rolling std function to be used repeatedly:
+    def stdRoller(data, windowLength):
+        myDataframe = pd.DataFrame(data=data, columns=['Var'])
+        myDataframe['Rolling'] = myDataframe['Var'].rolling(window=windowLength, center=True).std()
+        # Set the leading and trailing values equal to the mean standard deviation:
+        meanStd = np.nanmean(myDataframe['Rolling'].values)
+        infillData = np.full_like(myDataframe['Rolling'][:windowLength].values, fill_value=meanStd)
+        myDataframe['Rolling'][:windowLength] = infillData
+        myDataframe['Rolling'][-windowLength:] = infillData
+        stdRes = myDataframe['Rolling'].values
+        return stdRes
+    # Perform the computation:
+    if len(myData.shape) < 2:
+        # Case for unidimensional data:
+        stdData = stdRoller(myData, window_length)
+    else:
+        # Case for 2D data: Iterate through the data along the desired axis:
+        stdData = np.zeros_like(myData)
+        if axis == 0:
+            # First Axis:
+            for iRow in range(myData.shape[0]-1):
+                stdData[iRow, :] = stdRoller(myData[iRow, :], window_length)
+        elif axis == 1 or axis == -1:
+            # Second Axis:
+            for iCol in range(myData.shape[1]-1):
+                stdData[:, iCol] = stdRoller(myData[:, iCol], window_length)
+        else:
+            raise ValueError('The axis specified exceeds the dimensions of the data.')
+    return stdData
+
+def normalize(myData, axis=-1):
+    """
+    Normalize data with respect to the mean, along the axis specified by the user.
+    :param myData: ndarray
+        A 1d or 2d array of data.
+    :param axis: int
+        The axis along which to perform normalization with respect to the mean. Default is -1.
+    :return normedData: ndarray
+        The normalized data.
+    """
+    def normFunc(data):
+        return (data - np.nanmean(data)) / np.nanstd(data)
+    if len(myData.shape) < 2:
+        normedData = normFunc(myData)
+    else:
+        normedData = np.zeros_like(myData)
+        if axis == 0:
+            # First dimension:
+            for iRow in range(myData.shape[0]-1):
+                normedData[iRow, :] = normFunc(myData[iRow, :])
+        elif axis==1 or axis==-1:
+            # Second dimension:
+            for iCol in range(myData.shape[1]-1):
+                normedData[:, iCol] = normFunc(myData[:, iCol])
+        else:
+            raise ValueError('The axis specified exceeds the dimensions of the data.')
+    return normedData
+
+def covariates(neuvacFlux):
+    """
+    Given solar flux values in various bins, compute the bin-by-covariance and correlation estimates in order to yield
+    estimates of uncertainty.
+    :param neuvacFlux: ndarray
+        An nxm matrix of NEUVAC flux values, where n is the number of observations and m is the number of wavelength
+        bins.
+    :return cov: ndarray
+        The associated correlation matrix.
+    """
+    binStrings = ['Bin' + str(i[0] + 1) for i in enumerate(neuvacFlux[0, :])]
+    df = pd.DataFrame(neuvacFlux, columns=binStrings)
+    # View the data:
+    # df.plot(marker='.')
+    # Compute the covariances and covariances normalized by their respective standard deviations (https://stackoverflow.com/questions/63138921/covariance-of-two-columns-of-a-dataframe):
+    cov = df.cov()
+    # Visualize the Covariance Matrix:
+    plt.matshow(cov)
+    corr = df.corr()
+    # Visualize the Correlation Matrix:
+    plt.matshow(corr)
+    # TODO: Label and save the correlation matrix.
+    return corr
+
+def corrCol(myData, otherData, saveLoc=None):
+    """
+    Given two sets of data, find the correlation between them. If the first set of data
+    is multidimensional, correlate it with the second set by column. This function requires that
+    'otherData' is 1D and equivalent to the lengths of the columns of 'myData'. Otherwise, if 'myData'
+    is 1D, it must be the same length as 'otherData'.
+    :param myData: ndarray
+        The dependent variable data.
+    :param otherData: ndarray
+        The independent variable data.
+    :param saveLoc: str
+        A location where to save figures of the correlations. Optional argument. Default is None.
+    :return fitParams: ndarray
+        Coefficients of a polyomial fit to the data. The last element is Pearson's R.
+    """
+    # Loop through the columns and perform the correlation:
+    fitParams = []
+    sortInds = np.argsort(otherData)
+    sortedOtherData = otherData[sortInds]
+    referenceData = np.linspace(np.nanmin(sortedOtherData), np.nanmax(sortedOtherData), num=100)
+    for i in range(myData.shape[1]):
+        # Perform a linear fit:
+        coeffs = np.polyfit(sortedOtherData, myData[:, i][sortInds], 1) # Default is a quartic function
+        p = np.poly1d(coeffs)
+        # Perform a second-order polynomial fit:
+        coeffs2 = np.polyfit(sortedOtherData, myData[:, i][sortInds], 2)  # Default is a quartic function
+        p2 = np.poly1d(coeffs2)
+        # Perform a third-order polynomial fit:
+        coeffs3 = np.polyfit(sortedOtherData, myData[:, i][sortInds], 3)  # Default is a quartic function
+        p3 = np.poly1d(coeffs3)
+        # Calculate Pearson's R:
+        Rval = pearsonr(sortedOtherData, myData[:, i][sortInds])
+        # View the data:
+        plt.figure()
+        plt.scatter(sortedOtherData, myData[:, i][sortInds], color='b')
+        plt.plot(referenceData, p(referenceData), 'k-', label='Linear Fit')
+        plt.plot(referenceData, p2(referenceData), 'c-', label='2nd-Order Polynomial Fit')
+        plt.plot(referenceData, p3(referenceData), 'r-', label='3rd-Order Linear Fit')
+        text = "Pearson's R: "+str(np.round(Rval[0], 2))
+        plt.plot([], [], ' ', label=text)
+        plt.xlabel('$\sigma_{\Theta_{\lambda}}$')
+        plt.ylabel('F10.7 (sfu)')
+        plt.title('$\sigma_{\Theta_{\lambda}}$ vs. F10.7 (Band '+str(i+1)+')')
+        plt.legend(loc='best')
+        fitParams.append([coeffs, Rval[0]])
+        if saveLoc != None:
+            plt.savefig(saveLoc+'neuvacStdCorrelation_Band'+str(i+1)+'.png', dpi=300)
+            print('Plot saved to '+saveLoc+'neuvacStdCorrelation_Band'+str(i+1)+'.png')
+    return fitParams

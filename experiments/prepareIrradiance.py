@@ -91,51 +91,21 @@ if __name__=="__main__":
 
     # NEUVAC Results:
     neuvacRes = neuvac.neuvacEUV(F107, F107A)
+    # TODO: Compute NEUVAC band-by-band uncertaintes based on correlation estimates:
+    neuvacCorr = toolbox.covariates(neuvacRes) # Correlation matrix
+    neuvacRollingStd = toolbox.rollingStd(neuvacRes, window_length=30, axis=1) # Compute the rolling stddev in 30-day windows
+    neuvacRollingStdNormalized = toolbox.normalize(neuvacRollingStd, axis=1)
+    # Standard deviation as a function of F10.7 (by band)
+    neuvacBandCorrelations = toolbox.corrCol(neuvacRollingStdNormalized, F107, saveLoc=figures_directory)
+    # TODO: Determine a mean NEUVAC spectra:
+    # TODO: Functionality for perturbing the mean spectra (adding in correlated noise and uncorrelated noise independently):
+
 
     # EUVAC Results:
     euvacRes = euvac.euvac(F107, F107A)
 
     # HEUVAC Results:
     heuvacRes = heuvac.heuvac(F107, F107A)
-
-    # Correction factors (first attempt):
-    # Band 0: 1e0
-    # Band 1: 1e4
-    # Band 2: 1e3
-    # Band 3: 1e4
-    # Band 4: 1e1
-    # Band 5: 1e2
-    # Band 6: 1e1
-    # Band 7: 1e0
-    # Band 8: 1e1
-    # Band 9: 1e-1
-    # Band 10: 1e-1
-    # Band 11: 1e0
-    # Band 12: 1e-1
-    # Band 13: 1e-1
-    # Band 14: 1e-1
-    # Band 15: 1e-1
-    # Band 16: 1e-1
-    # Band 17: 1e0
-    # Band 18: 1e-1
-    # Band 19: 1e0
-    # Band 20: 1e0
-    # Band 21: 1e0
-    # Band 22: 1e-1
-    # Band 23: 1e0
-    # Band 24: 1e-1
-    # Band 25: 1e-1
-    # Band 26: 1e0
-    # Band 27: 1e0
-    # Band 28: 1e-1
-    # Band 29: 1e0
-    # Band 30: 1e1
-    # Band 31: 1e1
-    # Band 32: 1e1
-    # Band 33: 1e1
-    # Band 34: 1e0
-    # Band 35: 1e0
-    # Band 36: 1e0
 
     # 3D plotting of NEUVAC, EUVAC, and HEUVAC:
     bandIndicesNEUVAC = np.linspace(0, neuvacRes.shape[1], neuvacRes.shape[1]+1)
@@ -188,6 +158,7 @@ if __name__=="__main__":
     validSEEinds = np.where((myIrrTimesSEE >= times[0]) & (myIrrTimesSEE <= times[-1]))[0]
 
     # 2D plotting of NEUVAC, EUVAC, and HEUVAC:
+    # TODO: Clarify necessary conversions between spectral FLUX and spectral IRRADIANCE.
     from tools.spectralAnalysis import spectralIrradiance
     # band = 7
     # bottomFactor = 1e-1
@@ -213,8 +184,6 @@ if __name__=="__main__":
         ax.set_ylabel('Solar Irradiance (W/m$^2$/nm)')
         plt.show()
         plt.savefig(figures_directory+'Irradiance_Band_'+str(i+1)+'.png')
-
-    # TODO: Perform the necessary conversions between spectral FLUX and spectral IRRADIANCE.
 
     print('Data preparation complete.')
 #-----------------------------------------------------------------------------------------------------------------------
