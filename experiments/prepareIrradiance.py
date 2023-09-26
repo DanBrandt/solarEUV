@@ -8,6 +8,7 @@ import os
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
+from sklearn.metrics import mean_squared_error
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -20,7 +21,7 @@ from tools.processIrradiances import obtainFism1
 from tools.processIrradiances import obtainFism2
 from tools.processIrradiances import obtainSEE, rebinSEE
 from tools.processIrradiances import obtainNRLSSIS2, rebinNRL
-from tools import toolbox #, spectralAnalysis
+from tools import toolbox
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -30,6 +31,7 @@ results_directory = 'Results/'
 fism1_spectra_folder = '../empiricalModels/irradiances/FISM1/'
 fism2_spectra_folder = '../empiricalModels/irradiances/FISM2/'
 euv_folder = '../tools/EUV/'
+preparedDataFolder = '../experiments/preparedData'
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -87,19 +89,11 @@ if __name__=="__main__":
     F107A = toolbox.loadPickle(F107AveData)
     # F10.7 data extends between 1947-02-14; 12:00 to 2008-02-03; 12:00.
 
-    # NOTE: NEUVAC, EUVAC, and HEUVAC return spectral fluxes, and need to be converted to spectral irradiances.
+    # NOTE: NEUVAC, EUVAC, and HEUVAC return spectral fluxes. They'll need to be converted to spectral irradiance.
 
     # NEUVAC Results:
-    neuvacRes = neuvac.neuvacEUV(F107, F107A)
-    # TODO: Compute NEUVAC band-by-band uncertaintes based on correlation estimates:
-    neuvacCorr = toolbox.covariates(neuvacRes) # Correlation matrix
-    neuvacRollingStd = toolbox.rollingStd(neuvacRes, window_length=30, axis=1) # Compute the rolling stddev in 30-day windows
-    neuvacRollingStdNormalized = toolbox.normalize(neuvacRollingStd, axis=1)
-    # Standard deviation as a function of F10.7 (by band)
-    neuvacBandCorrelations = toolbox.corrCol(neuvacRollingStdNormalized, F107, saveLoc=figures_directory)
-    # TODO: Determine a mean NEUVAC spectra:
-    # TODO: Functionality for perturbing the mean spectra (adding in correlated noise and uncorrelated noise independently):
-
+    neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A)
+    neuvacCorr = toolbox.covariates(neuvacIrr) # Correlation matrix
 
     # EUVAC Results:
     euvacRes = euvac.euvac(F107, F107A)
@@ -108,8 +102,8 @@ if __name__=="__main__":
     heuvacRes = heuvac.heuvac(F107, F107A)
 
     # 3D plotting of NEUVAC, EUVAC, and HEUVAC:
-    bandIndicesNEUVAC = np.linspace(0, neuvacRes.shape[1], neuvacRes.shape[1]+1)
-    bandIndicesEUVAC = np.linspace(0, euvacRes.shape[1], euvacRes.shape[1]+1)
+    # bandIndicesNEUVAC = np.linspace(0, neuvacRes.shape[1], neuvacRes.shape[1]+1)
+    # bandIndicesEUVAC = np.linspace(0, euvacRes.shape[1], euvacRes.shape[1]+1)
     # fig = plt.figure()
     # ax = fig.add_subplot(111, projection='3d')
     # # NEUVAC
@@ -131,6 +125,7 @@ if __name__=="__main__":
 
     # FISM1 Results:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
+    mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
     myFism1Files = os.listdir(fism1_spectra_folder)
     myTimesFISM1, myIrradianceFISM1 = obtainFism1(myFism1Files, euv_data_59, saveLoc=fism1_spectra_folder)
     # FISM1 data extends between 1990-01-01; 00:00 and 2018-04-10; 00:00.
@@ -145,45 +140,110 @@ if __name__=="__main__":
     datetimesNRL, wavelengthsNRL, bandwidthsNRL, irradiancesNRL, uncertaintiesNRL = obtainNRLSSIS2(NRLFile)
     rebinnedNRLData = rebinNRL(irradiancesNRL, euv_data_59, wavelengthsNRL, bandwidthsNRL)
 
-    # TODO: INCLUDE SOLAR2000 Results.
-
     # TIMED/SEE Data:
     seeFile = '../measurements/TIMED_SEE_Level_3/see_L3_merged_1947-2023.ncdf'
     myIrrTimesSEE, mySEEWavelengths, myIrrDataAllSEE, myIrrUncAllSEE = obtainSEE(seeFile)
     rebinnedIrrData = rebinSEE(myIrrDataAllSEE, euv_data_59)
+    # Replace bad values (zeros) with NaNs:
+    rebinnedIrrDataFixed = rebinnedIrrData.copy()
+    rebinnedIrrDataFixed[rebinnedIrrDataFixed == 0] = np.nan
     # TIMED/SEE data extends between 2002-01-22;12:00 and 2023-08-27; 12:00.
 
-    # TODO: Subset FISM1, FISM2, and NRLSSI2 to correspond (as much as possible) to the N/H/EUVAC times:
-    validFISM2inds = np.where((myIrrTimesFISM2 >= times[0]) & (myIrrTimesFISM2 <= times[-1]))[0]
-    validSEEinds = np.where((myIrrTimesSEE >= times[0]) & (myIrrTimesSEE <= times[-1]))[0]
+    # ------------------------------------------------------------------------------------------------------------------
+    # ANALYSIS OF RESIDUALS:
+    # Identify the bands in SEE to actually consider:
+    goodBands = rebinnedIrrData.any(0)
+    # Comparison to TIMED/SEE ONLY:
+    F107indices = np.where((times >= myIrrTimesSEE[0]) & (times <= myIrrTimesSEE[-1]))[0]
+    F107TimesSeeSubset= times[F107indices]
+    F107SeeSubset = F107[F107indices]
+    F107ASubset = F107A[F107indices]
+    neuvacSubset = neuvacIrr[F107indices, :]
+    neuvacSubset = neuvacSubset[:, goodBands]
+    # Find elements in TIMED/SEE data nearest to the subsetted F107 times:
+    closestSeeInds = []
+    closestSeeTimes = []
+    for timestamp in F107TimesSeeSubset:
+        res = toolbox.find_nearest(myIrrTimesSEE, timestamp)
+        closestSeeInds.append(res[0])
+        closestSeeTimes.append( res[1] )
+    closestSeeInds = np.asarray(closestSeeInds)
+    closestSeeTimes = np.asarray(closestSeeTimes)
+    closestSeeVals = rebinnedIrrDataFixed[closestSeeInds, :]
+    closestSeeVals = closestSeeVals[:, goodBands]
+    # Compute residuals:
+    neuvacResids = np.subtract(neuvacSubset, closestSeeVals)
+    # Sort the residuals by F10.7:
+    orderedF107SubsetInds = np.argsort(F107SeeSubset)
+
+    # Plot the time series of irradiance for NEUVAC and TIMED/SEE for each band:
+    # for i in range(neuvacResids.shape[1]):
+    #     plt.figure(); plt.plot(closestSeeVals[:, i], label='SEE'); plt.plot(neuvacSubset[:, i], label='NEUVAC'); plt.legend(loc='best')
+
+    # Plot the residuals in each band as function of F10.7:
+    modelParams = []
+    RMSvalsByBand = []
+    for i in range(neuvacResids.shape[1]):
+        sampleF107 = np.linspace(np.nanmin(F107SeeSubset[orderedF107SubsetInds][0]), np.nanmax(F107SeeSubset[orderedF107SubsetInds][-1]), num=100)
+        modelResults = toolbox.bestPolyfit(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, i], func='exp')
+        # modelResults = toolbox.bestPolyfit(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, i])
+        plt.figure()
+        plt.plot(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, i], 'bo')
+        # plt.plot(sampleF107, modelResults[0](sampleF107), 'r-', label='Model Fit (order = '+str(modelResults[2])+')')
+        plt.plot(sampleF107, modelResults[0][0](sampleF107, *modelResults[0][1]), 'r-',
+                label='Exponential Model Fit')
+        plt.plot([], [], color='w', alpha=0, label='R='+str(modelResults[1]))
+        plt.suptitle('Residuals vs. F10.7: Band '+str(i+1))
+        plt.legend(loc='best')
+        figname = 'neuvacVsF107_Band_'+str(i+1)+'.png'
+        plt.savefig(figures_directory+figname, dpi=300)
+        rms = mean_squared_error(neuvacSubset[:, i][~np.isnan(closestSeeVals[:, i])], closestSeeVals[:, i][~np.isnan(closestSeeVals[:, i])], squared=False)
+        modelParams.append(modelResults[0])
+        RMSvalsByBand.append(rms)
+
+    # Display the RMS by band:
+    neuvacBands = np.flipud(neuvac.waveTable)
+    goodNeuvacBands = neuvacBands[goodBands, :]
+    neuvacBandsMids = 0.5*(goodNeuvacBands[:, 1] + goodNeuvacBands[:, 0])
+    plt.figure(figsize=(10,8))
+    plt.plot(neuvacBandsMids[np.argsort(neuvacBandsMids)], np.asarray(RMSvalsByBand)[np.argsort(neuvacBandsMids)], 'o-')
+    plt.xlabel('Wavelength (Angstroms)')
+    plt.ylabel('RMS Error (W/m$^2$/nm)')
+    plt.title('EUV Irradiance RMSE vs. Band')
+    plt.savefig(figures_directory+'RMSE_vs_band.png', dpi=300)
+
+    # Compute the RMS in each band as a function of F10.7, by binning F10.7 into 10 sfu intervals:
+    for i in range(neuvacResids.shape[1]):
+        myTitleStr = 'RMSE vs. F10.7: '+str(neuvacBandsMids[i])+' Angstroms'
+        F107Bins, binRMSE = toolbox.binCorrelation(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, i], closestSeeVals[:, i], step=10, saveLoc=figures_directory, titleStr=str(neuvacBandsMids[i]))
+
+    # TODO: Functionality for adding in correlated noise & uncorrelated noise (separately):
 
     # 2D plotting of NEUVAC, EUVAC, and HEUVAC:
-    # TODO: Clarify necessary conversions between spectral FLUX and spectral IRRADIANCE.
     from tools.spectralAnalysis import spectralIrradiance
     # band = 7
     # bottomFactor = 1e-1
     # topFactor = 1e1
-    mids = 0.5*(euv_data_59['long'] + euv_data_59['short'])
-    for i in range(37): # (band, band+1):
-        currentWavelength = np.mean([euvacTable[i][1], euvacTable[i][2]])
-        dWave = euvacTable[i][2] - euvacTable[i][1]
-        fig = plt.figure(figsize=(12,6))
-        ax = fig.add_subplot(111)
-        ax.plot(times, spectralIrradiance(neuvacRes[:, i], currentWavelength, dWavelength=dWave), 'b-', label='NEUVAC')
-        # ax.plot(neuvacRes[:, i] * bottomFactor, 'b--')
-        # ax.plot(neuvacRes[:, i] * topFactor, 'b:')
-        ax.plot(times, spectralIrradiance(euvacRes[:, i], currentWavelength, dWavelength=dWave), 'g-', label='EUVAC')
-        ax.plot(times, spectralIrradiance(heuvacRes[:, i], currentWavelength, dWavelength=dWave), 'r-', label='HEUVAC')
-        # FISM2:
-        #fismVals = spectralFlux(myIrrDataAllFISM2[:, i][validFISM2inds], currentWavelength, dWavelength=dWave)
-        fismVals = myIrrDataAllFISM2[:, i][validFISM2inds]
-        ax.plot(myIrrTimesFISM2[validFISM2inds], fismVals, 'c-', label='FISM2')
-        ax.legend(loc='best')
-        ax.set_title('Solar EUV Irradiance at '+str(mids[i])+' Angstroms')
-        ax.set_xlabel('Time')
-        ax.set_ylabel('Solar Irradiance (W/m$^2$/nm)')
-        plt.show()
-        plt.savefig(figures_directory+'Irradiance_Band_'+str(i+1)+'.png')
+    # for i in range(37): # (band, band+1):
+    #     currentWavelength = np.mean([euvacTable[i][1], euvacTable[i][2]])
+    #     dWave = euvacTable[i][2] - euvacTable[i][1]
+    #     fig = plt.figure(figsize=(12,6))
+    #     ax = fig.add_subplot(111)
+    #     ax.plot(times, spectralIrradiance(neuvacRes[:, i], currentWavelength, dWavelength=dWave), 'b-', label='NEUVAC')
+    #     # ax.plot(neuvacRes[:, i] * bottomFactor, 'b--')
+    #     # ax.plot(neuvacRes[:, i] * topFactor, 'b:')
+    #     ax.plot(times, spectralIrradiance(euvacRes[:, i], currentWavelength, dWavelength=dWave), 'g-', label='EUVAC')
+    #     ax.plot(times, spectralIrradiance(heuvacRes[:, i], currentWavelength, dWavelength=dWave), 'r-', label='HEUVAC')
+    #     # FISM2:
+    #     #fismVals = spectralFlux(myIrrDataAllFISM2[:, i][validFISM2inds], currentWavelength, dWavelength=dWave)
+    #     fismVals = myIrrDataAllFISM2[:, i][validFISM2inds]
+    #     ax.plot(myIrrTimesFISM2[validFISM2inds], fismVals, 'c-', label='FISM2')
+    #     ax.legend(loc='best')
+    #     ax.set_title('Solar EUV Irradiance at '+str(mids[i])+' Angstroms')
+    #     ax.set_xlabel('Time')
+    #     ax.set_ylabel('Solar Irradiance (W/m$^2$/nm)')
+    #     plt.show()
+    #     plt.savefig(figures_directory+'Irradiance_Band_'+str(i+1)+'.png')
 
     print('Data preparation complete.')
 #-----------------------------------------------------------------------------------------------------------------------

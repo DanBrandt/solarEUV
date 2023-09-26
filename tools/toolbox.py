@@ -9,10 +9,12 @@ from sklearn.impute import SimpleImputer
 from datetime import datetime, timedelta
 from scipy.interpolate import CubicSpline
 from scipy.interpolate import InterpolatedUnivariateSpline
+from scipy.optimize import curve_fit
 import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions
 def savePickle(data, pickleFilename):
@@ -333,11 +335,11 @@ def normalize(myData, axis=-1):
 
 def covariates(neuvacFlux):
     """
-    Given solar flux values in various bins, compute the bin-by-covariance and correlation estimates in order to yield
-    estimates of uncertainty.
+    Given solar flux or irradiance values in various bins, compute the bin-by-covariance and correlation estimates in
+    order to yield estimates of uncertainty.
     :param neuvacFlux: ndarray
-        An nxm matrix of NEUVAC flux values, where n is the number of observations and m is the number of wavelength
-        bins.
+        An nxm matrix of NEUVAC flux/irradiance values, where n is the number of observations and m is the number of
+        wavelength bins.
     :return cov: ndarray
         The associated correlation matrix.
     """
@@ -368,7 +370,7 @@ def corrCol(myData, otherData, saveLoc=None):
     :param saveLoc: str
         A location where to save figures of the correlations. Optional argument. Default is None.
     :return fitParams: ndarray
-        Coefficients of a polyomial fit to the data. The last element is Pearson's R.
+        A poly1d object for the fit of the data. The last element is Pearson's R.
     """
     # Loop through the columns and perform the correlation:
     fitParams = []
@@ -376,31 +378,171 @@ def corrCol(myData, otherData, saveLoc=None):
     sortedOtherData = otherData[sortInds]
     referenceData = np.linspace(np.nanmin(sortedOtherData), np.nanmax(sortedOtherData), num=100)
     for i in range(myData.shape[1]):
-        # Perform a linear fit:
-        coeffs = np.polyfit(sortedOtherData, myData[:, i][sortInds], 1) # Default is a quartic function
-        p = np.poly1d(coeffs)
-        # Perform a second-order polynomial fit:
-        coeffs2 = np.polyfit(sortedOtherData, myData[:, i][sortInds], 2)  # Default is a quartic function
-        p2 = np.poly1d(coeffs2)
-        # Perform a third-order polynomial fit:
-        coeffs3 = np.polyfit(sortedOtherData, myData[:, i][sortInds], 3)  # Default is a quartic function
-        p3 = np.poly1d(coeffs3)
-        # Calculate Pearson's R:
-        Rval = pearsonr(sortedOtherData, myData[:, i][sortInds])
+        currentData = myData[:, i][sortInds]
+        # Find the best model fit, up to a polynomial of order 10:
+        p, rss, order = bestPolyfit(sortedOtherData, currentData, 1)
+        Rval = pearsonr(sortedOtherData, currentData)
         # View the data:
         plt.figure()
-        plt.scatter(sortedOtherData, myData[:, i][sortInds], color='b')
-        plt.plot(referenceData, p(referenceData), 'k-', label='Linear Fit')
-        plt.plot(referenceData, p2(referenceData), 'c-', label='2nd-Order Polynomial Fit')
-        plt.plot(referenceData, p3(referenceData), 'r-', label='3rd-Order Linear Fit')
+        plt.scatter(sortedOtherData, currentData, color='b')
+        plt.plot(referenceData, p(referenceData), 'r-', label='Model Fit: Order '+str(order)+' (RSS= '+str(np.round(rss, 2))+')')
         text = "Pearson's R: "+str(np.round(Rval[0], 2))
         plt.plot([], [], ' ', label=text)
-        plt.xlabel('$\sigma_{\Theta_{\lambda}}$')
-        plt.ylabel('F10.7 (sfu)')
-        plt.title('$\sigma_{\Theta_{\lambda}}$ vs. F10.7 (Band '+str(i+1)+')')
+        plt.ylabel('$\sigma_{r_{\Theta_{\lambda}}}$')
+        plt.xlabel('F10.7 (sfu)')
+        plt.title('$\sigma_{r_{\Theta_{\lambda}}}$ vs. F10.7 (Band '+str(i+1)+')')
         plt.legend(loc='best')
-        fitParams.append([coeffs, Rval[0]])
+        fitParams.append([p, Rval[0]])
         if saveLoc != None:
-            plt.savefig(saveLoc+'neuvacStdCorrelation_Band'+str(i+1)+'.png', dpi=300)
-            print('Plot saved to '+saveLoc+'neuvacStdCorrelation_Band'+str(i+1)+'.png')
+            plt.savefig(saveLoc+'neuvacResidStdCorrelation_Band'+str(i+1)+'.png', dpi=300)
+            print('Plot saved to '+saveLoc+'neuvacResidStdCorrelation_Band'+str(i+1)+'.png')
     return fitParams
+
+def bestPolyfit(xdata, ydata, maxOrder=5, func=None, **kwargs):
+    """
+    Given independent variable and dependent variable 1D data fit the data with polynomial functions of orders up to a
+    user-defined limit set to 'maxOrder'. For the best-fitting model, return the parameters for the polynomial (as a
+    poly1d object) along with the associated Residual Sum of Squares.
+    :param xdata: ndarray
+        1D independent variable data.
+    :param ydata: ndarray
+        1D dependent variable data.
+    :param maxOrder: int
+        A number below which (inclusive) to consider models to fit to the data. Default is 5.
+    :param func: str
+        Specifies what function should be used for fitting. Valid strings are: 'exp', 'linear', 'log', and 'cubic'. If
+        this argument is passed, maxOrder is ignored.
+    :return modelRes: list
+        A list where the first element are the model parameters, the second is the Residual Sum of Squares, and the
+        third is the model order.
+    """
+    # Example functions:
+    if func is not None:
+        if func == 'exp':
+            def myFunc(x, a, b, c, d):
+                return a*np.exp(-b*x + c) + d
+        elif func == 'cubic':
+            def myFunc(x, a, b, c, d):
+                return a*x**3 + b*x**2 + c*x + d
+        elif func == 'linear':
+            def myFunc(x, a, b):
+                return a*x + b
+        elif func == 'log':
+            def myFunc(x, a, b):
+                a*np.log(x) + b
+        elif func == 'quadratic':
+            def myFunc(x, a, b, c):
+                return a*x**2 + b*x + c
+        else:
+            raise ValueError('Invalid argument supplied for argument "func".')
+
+    models = []
+    rss_vals = []
+    orders = []
+    # Fit models of various orders:
+    if func is not None:
+        if func == 'exp':
+            p0 = [2e-3, 2e-1, 3, 8e-7]
+            newP0 = [2e-3, 0.1, np.nanmax(ydata), np.nanmin(ydata)]
+        else:
+            p0 = None
+        popt, pcov = curve_fit(myFunc, xdata, ydata, p0=p0)
+        # If convergence is not achieved, try again with new initializing parameters:
+        if np.where(np.isinf(pcov))[0].shape[0] > 0:
+            popt, pcov = curve_fit(myFunc, xdata, ydata, p0=newP0)
+        p = popt
+        # Plotting for a sanity check:
+        sampleXdata = np.linspace(np.nanmin(xdata), np.nanmax(xdata), num=100)
+        # plt.figure(); plt.scatter(xdata, ydata, color='b', label='Data'); plt.plot(sampleXdata, myFunc(sampleXdata, *popt), 'r-', label='Fit')
+        # plt.plot(sampleXdata, myFunc(sampleXdata, *newP0), color='orange', linestyle='--'); plt.legend(loc='best')
+        # Compute the R-squared (https://stackoverflow.com/questions/19189362/getting-the-r-squared-value-using-curve-fit):
+        residuals = ydata - myFunc(xdata, *popt)
+        ss_res = np.sum(residuals ** 2)
+        ss_tot = np.sum((ydata - np.mean(ydata)) ** 2)
+        r_squared = 1 - (ss_res / ss_tot)
+        rss_vals.append(r_squared)
+        models.append([myFunc, p])
+        modelRes = [[myFunc, p], r_squared, func]
+    else:
+        for i in range(maxOrder):
+            coeffs = np.polyfit(xdata, ydata, i+1)
+            p = np.poly1d(coeffs)
+            rss_vals.append(np.sum((ydata - p(xdata)) ** 2))
+            models.append(p)
+            orders.append(i+1)
+        # Determine which model worked the best:
+        locBest = np.nanargmin(np.asarray(rss_vals))
+        modelRes = [models[locBest], rss_vals[locBest], orders[locBest]]
+    return modelRes
+
+def binCorrelation(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=None):
+    """
+    Given some 1D independent variable data, some 1D estimates of dependent variable data, 1D true values of dependent
+    variable data, and a step size, divide the xdata into bins of width equal to the step size and compute the RMSE
+    error in each bin. Then compute the correlation between the the RMSE and the binned xdata. Automatically saves
+    a figure for the results at a user-defined location.
+    :param xdata: ndarray
+        1D independent variable data.
+    :param ydataEst: ndarray
+        1D estimates of dependent variable data.
+    :param ydataEst: ndarray
+        1D actual values of dependent variable data.
+    :param step: int
+        The bin width for the independent variable data. Default is 10.
+    :param saveLoc: str
+        A string for the location where the figure should be saved.
+    :param titleStr: str
+        A string for the title of the figure to be generated. Assumes that a single number representing a figure number
+        or wavelength is given.
+    :return binCenters: list
+        The bin centers for the dependent variable data.
+    :return RMSE: list
+        The RMSE values for each bin.
+    """
+    # Create the bins:
+    start = round_mult(np.nanmin(xdata), step, direction='down')
+    stop = round_mult(np.nanmax(xdata), step, direction='up')
+    bins = np.arange(start, stop, step=step)
+    binCenters = np.asarray([(a + b) / 2 for a, b in zip(bins[::2], bins[1::2])])
+    # Loop the bins and compute the RMSE values:
+    RMSE = []
+    i = 0
+    for element in binCenters:
+        # Isolate the data that correspond to the given bin:
+        goodInds = np.where((xdata >= bins[2*i-1]) & (xdata <= bins[2*i]))[0]
+        if len(goodInds) > 0:
+            goodEstData = ydataEst[goodInds]
+            goodTrueData = ydataTrue[goodInds]
+            rmse = mean_squared_error(goodTrueData[~np.isnan(goodTrueData)], goodEstData[~np.isnan(goodTrueData)], squared=False)
+        else:
+            # If there is nothing in the bin, just record NaN for that bin:
+            rmse = np.nan
+        RMSE.append(rmse)
+        i += 1
+    # Plot the results for a sanity check:
+    plt.figure()
+    plt.plot(binCenters, RMSE, 'bo-')
+    plt.xlabel('F10.7 (sfu)')
+    plt.ylabel('RMSE (W/m$^2$/nm)')
+    if titleStr != None:
+        plt.suptitle('RMSE vs. F10.7: '+titleStr+' Angstroms')
+    if saveLoc != None:
+        plt.savefig(saveLoc+'RMSEvsF107_'+titleStr.replace('.', '_')+'.png', dpi=300)
+    return binCenters, RMSE
+
+def round_mult(num, divisor, direction='down'):
+    """
+    Round a number to the nearest integer multiple of a given divisor.
+    :param num: int or float
+        The number to round down.
+    :param divisor: int or float
+        The number which the result must be an integer multiple of.
+    :param direction: str
+        Either 'down' or 'up'. Specifies whether rounding should be done up or down/
+    :return rounded: float
+        The resulting number.
+    """
+    if direction == 'down':
+        return num - (num%divisor)
+    else:
+        return divisor*(round(num/divisor))

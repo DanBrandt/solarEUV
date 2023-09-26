@@ -186,7 +186,7 @@ def rebinSEE(SEEirradiances, wavelengths):
     Take irradiances output by by getSEE and bin them according to the strictures of the bin boundaries given by 'bins'.
     :param: SEEirradiances: ndarray
         TIMED/SEE irradiances in the 195 bands collected by TIMED/SEE, in units of W/m^2/nm. The shape of irradiances
-        must be n x 159, where n is the number of times (samples) for which irradiances were taken.
+        must be n x 195, where n is the number of times (samples) for which irradiances were taken.
     :param: wavelengths: dict
         A dictionary of two elements, one with 'short' wavelengths and one with 'long' wavelengths. Returned by
         fism2_process.read_euv_csv_file. The units here are in angstroms.
@@ -234,8 +234,12 @@ def rebinSEE(SEEirradiances, wavelengths):
             if (long == short):
                 d = np.abs(SEEBands - short)
                 j = np.argmin(d)
-                rebinnedIrrData[i, iWave] = irradiances[i][j] # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
-                # zero out bin so we don't double count it.
+                # If the value of irradiance in this bin is at or below zero, simply set equal to zero.
+                if irradiances[i][j] <= 0:
+                    rebinnedIrrData[i, iWave] = 0
+                else:
+                    rebinnedIrrData[i, iWave] = irradiances[i][j] # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
+                # Zero out bin so we don't double count it.
                 irradiances[i][j] = 0.0
 
         # Then, go through the ranges:
@@ -248,7 +252,11 @@ def rebinSEE(SEEirradiances, wavelengths):
                 d2 = np.abs(SEEBands - long)
                 iEnd = np.argmin(d2)
                 for j in range(iStart + 1, iEnd + 1):
-                    rebinnedIrrData[i, iWave] += irradiances[i][j] # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
+                    # If the value of irradiance in this bin is at or below zero, simply set equal to zero.
+                    if irradiances[i][j] <= 0:
+                        rebinnedIrrData[i, iWave] = 0 # += 0
+                    else:
+                        rebinnedIrrData[i, iWave] += irradiances[i][j] # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
 
     # sampleIdx = 18
     # fig = plt.figure(figsize=(12, 8))
