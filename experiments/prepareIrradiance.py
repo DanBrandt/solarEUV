@@ -215,7 +215,80 @@ if __name__=="__main__":
     # Compute the RMS in each band as a function of F10.7, by binning F10.7 into 10 sfu intervals:
     for i in range(neuvacResids.shape[1]):
         myTitleStr = 'RMSE vs. F10.7: '+str(neuvacBandsMids[i])+' Angstroms'
-        F107Bins, binRMSE = toolbox.binCorrelation(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, i], closestSeeVals[:, i], step=10, saveLoc=figures_directory, titleStr=str(neuvacBandsMids[i]))
+        F107Bins, binRMSE = toolbox.binRMSE(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, i], closestSeeVals[:, i], step=10, saveLoc=figures_directory, titleStr=str(neuvacBandsMids[i]), normalize=True)
+
+    # ------------------------------------------------------------------------------------------------------------------
+    # ANALYSIS FOR SELECT WAVELENGTH BANDS (one near 10A, 100A, and 1000A)
+
+    # 1. SEE measurements vs F107 and NEUVAC vs F107 on the same plot.  You can color code the dots. (This would be used for a paper)
+    residsDir = figures_directory+'Resids/'
+    # Isolate the bands 8-16A (12A), 100-150A (125A), and 1000-1050A (1025A):
+    chosenBands = [0, 5, 39]
+    for bandIndex in chosenBands:
+        plt.figure(figsize=(12, 8))
+        # NEUVAC:
+        plt.scatter(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[orderedF107SubsetInds, bandIndex], color='b', label='NEUVAC')
+        # TIMED/SEE:
+        plt.scatter(F107SeeSubset[orderedF107SubsetInds], closestSeeVals[orderedF107SubsetInds, bandIndex], color='r', label='TIMED/SEE')
+        # Labels:
+        titleFontSize = 20
+        fontSize = 18
+        labelSize = 16
+        plt.xlabel('F10.7 (sfu)', fontsize=fontSize)
+        plt.ylabel('Solar Spectral Irradiance (W/m$^2$/nm)', fontsize=fontSize)
+        plt.suptitle('Irradiance vs. F10.7: '+str(neuvacBandsMids[bandIndex])+' Angstroms', fontsize=titleFontSize)
+        plt.tick_params(axis='both', labelsize=labelSize)
+        plt.legend(loc='best', fontsize=fontSize)
+        plt.savefig(residsDir + 'Irr_vs_F107_'+str(neuvacBandsMids[bandIndex])+'.png', dpi=300)
+
+    # 2. NEUVAC - SEE measurements vs F107 as scatter plot (for the paper)
+    for bandIndex in chosenBands:
+        plt.figure(figsize=(14, 8))
+        plt.scatter(F107SeeSubset[orderedF107SubsetInds], neuvacResids[orderedF107SubsetInds, bandIndex], color='m')
+        # Labels:
+        titleFontSize = 20
+        fontSize = 18
+        labelSize = 16
+        plt.xlabel('F10.7 (sfu)', fontsize=fontSize)
+        plt.ylabel('NEUVAC - SEE (W/m$^2$/nm)', fontsize=fontSize)
+        plt.suptitle('NEUVAC - SEE vs. F10.7: '+str(neuvacBandsMids[bandIndex])+' Angstroms', fontsize=titleFontSize)
+        plt.tick_params(axis='both', labelsize=labelSize)
+        plt.savefig(residsDir + 'Irr_Resids_vs_F107_'+str(neuvacBandsMids[bandIndex])+'.png', dpi=300)
+
+    # 3. (NEUVAC - SEE measurements)^2 vs F107 as scatter plot (intermediate plot)
+    for bandIndex in chosenBands:
+        plt.figure(figsize=(12, 8))
+        plt.scatter(F107SeeSubset[orderedF107SubsetInds], np.square(neuvacResids[orderedF107SubsetInds, bandIndex]), color='m')
+        # Labels:
+        titleFontSize = 20
+        fontSize = 18
+        labelSize = 16
+        plt.xlabel('F10.7 (sfu)', fontsize=fontSize)
+        plt.ylabel('(NEUVAC - SEE)$^2$ (W$^2$/m$^4$/nm$^2$)', fontsize=fontSize)
+        plt.suptitle('(NEUVAC - SEE)$^2$ vs. F10.7: '+str(neuvacBandsMids[bandIndex])+' Angstroms', fontsize=titleFontSize)
+        plt.tick_params(axis='both', labelsize=labelSize)
+        plt.savefig(residsDir + 'Irr_Squared_Diff_vs_F107_' + str(neuvacBandsMids[bandIndex]) + '.png', dpi=300)
+
+    # 4. (NEUVAC - SEE measurements)^2 vs F107 as scatter plot (as in 3) with 10 sfu bin averages of the (N-S)^2 values (intermediate plot)
+    for bandIndex in chosenBands:
+        myTitleStr = 'Squared Differences vs. Binned F10.7: ' + str(neuvacBandsMids[bandIndex]) + ' Angstroms'
+        F107Bins, binRMSE = toolbox.binCorrelation(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, bandIndex],
+                                            closestSeeVals[:, bandIndex], step=10, saveLoc=residsDir,
+                                            titleStr=str(neuvacBandsMids[bandIndex]), root=False, normalize=False)
+
+    # 5. sqrt(values from 4 in the 10 sfu bins) vs f107 (for the paper)
+    for bandIndex in chosenBands:
+        myTitleStr = 'Square Root Differences vs. Binned F10.7: ' + str(neuvacBandsMids[bandIndex]) + ' Angstroms'
+        F107Bins, binRMSE = toolbox.binCorrelation(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, bandIndex],
+                                            closestSeeVals[:, bandIndex], step=10, saveLoc=residsDir,
+                                            titleStr=str(neuvacBandsMids[bandIndex]), root=True, normalize=False)
+
+    # 6. sqrt(values from 4 in the 10 sfu bins)/SEE measurements * 100% vs f107  (for the paper)
+    for bandIndex in chosenBands:
+        myTitleStr = 'Normalized Square Root Differences vs. Binned F10.7: ' + str(neuvacBandsMids[bandIndex]) + ' Angstroms'
+        F107Bins, binRMSE = toolbox.binCorrelation(F107SeeSubset[orderedF107SubsetInds], neuvacSubset[:, bandIndex],
+                                            closestSeeVals[:, bandIndex], step=10, saveLoc=residsDir,
+                                            titleStr=str(neuvacBandsMids[bandIndex]), root=True, normalize=True)
 
     # TODO: Functionality for adding in correlated noise & uncorrelated noise (separately):
 

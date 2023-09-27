@@ -475,7 +475,7 @@ def bestPolyfit(xdata, ydata, maxOrder=5, func=None, **kwargs):
         modelRes = [models[locBest], rss_vals[locBest], orders[locBest]]
     return modelRes
 
-def binCorrelation(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=None):
+def binRMSE(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=None, normalize=False):
     """
     Given some 1D independent variable data, some 1D estimates of dependent variable data, 1D true values of dependent
     variable data, and a step size, divide the xdata into bins of width equal to the step size and compute the RMSE
@@ -494,6 +494,8 @@ def binCorrelation(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=N
     :param titleStr: str
         A string for the title of the figure to be generated. Assumes that a single number representing a figure number
         or wavelength is given.
+    :param normalize: Bool
+        Controls whether the RMSE is normalized or not. Default is False.
     :return binCenters: list
         The bin centers for the dependent variable data.
     :return RMSE: list
@@ -514,6 +516,8 @@ def binCorrelation(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=N
             goodEstData = ydataEst[goodInds]
             goodTrueData = ydataTrue[goodInds]
             rmse = mean_squared_error(goodTrueData[~np.isnan(goodTrueData)], goodEstData[~np.isnan(goodTrueData)], squared=False)
+            if normalize == True:
+                rmse = rmse / (np.nanmax(goodTrueData) - np.nanmin(goodTrueData))
         else:
             # If there is nothing in the bin, just record NaN for that bin:
             rmse = np.nan
@@ -527,8 +531,87 @@ def binCorrelation(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=N
     if titleStr != None:
         plt.suptitle('RMSE vs. F10.7: '+titleStr+' Angstroms')
     if saveLoc != None:
-        plt.savefig(saveLoc+'RMSEvsF107_'+titleStr.replace('.', '_')+'.png', dpi=300)
+        plt.savefig(saveLoc+'RootMeanSquareDeviationVsF107_'+titleStr.replace('.', '_')+'.png', dpi=300)
     return binCenters, RMSE
+
+def binCorrelation(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=None, root=False, normalize=False):
+    """
+    Given some 1D independent variable data, some 1D estimates of dependent variable data, 1D true values of dependent
+    variable data, and a step size, divide the xdata into bins of width equal to the step size and compute the squared
+    difference in each bin. Then compute the correlation between the the squared difference and the binned xdata.
+    Automatically saves a figure for the results at a user-defined location.
+    :param xdata: ndarray
+        1D independent variable data.
+    :param ydataEst: ndarray
+        1D estimates of dependent variable data.
+    :param ydataEst: ndarray
+        1D actual values of dependent variable data.
+    :param step: int
+        The bin width for the independent variable data. Default is 10.
+    :param saveLoc: str
+        A string for the location where the figure should be saved.
+    :param titleStr: str
+        A string for the title of the figure to be generated. Assumes that a single number representing a figure number
+        or wavelength is given.
+    :param root: Bool
+        Controls whether the square root of the SQDF is taken. Default is False.
+    :param normalize: Bool
+        Controls whether the SQDF is normalized (by dividing by the true data and multiplying by 100). Default is False.
+        If True, ignores the value of 'root'.
+    :return binCenters: list
+        The bin centers for the dependent variable data.
+    :return SQDF: list
+        The Squared Difference values for each bin.
+    """
+    # Create the bins:
+    start = round_mult(np.nanmin(xdata), step, direction='down')
+    stop = round_mult(np.nanmax(xdata), step, direction='up')
+    bins = np.arange(start, stop, step=step)
+    binCenters = np.asarray([(a + b) / 2 for a, b in zip(bins[::2], bins[1::2])])
+    # Loop the bins and compute the RMSE values:
+    SQDF = []
+    i = 0
+    for element in binCenters:
+        # Isolate the data that correspond to the given bin:
+        goodInds = np.where((xdata >= bins[2*i-1]) & (xdata <= bins[2*i]))[0]
+        if len(goodInds) > 0:
+            goodEstData = ydataEst[goodInds]
+            goodTrueData = ydataTrue[goodInds]
+            N = len(goodTrueData[~np.isnan(goodTrueData)])
+            sqdf = np.mean(
+                np.square(np.subtract(goodEstData[~np.isnan(goodTrueData)], goodTrueData[~np.isnan(goodTrueData)])) / N)
+            ylabelString = 'Squared Differences (W/m$^2$/nm)'
+            realTitleString = 'Squared Differences'
+            if normalize == False:
+                if root == True:
+                    sqdf = np.sqrt(sqdf)
+                    ylabelString = 'RMSE (W/m$^2$/nm)'
+                    realTitleString = 'RMSE'
+            else:
+                sqdf = np.mean(np.divide(
+                    np.square(np.subtract(goodEstData[~np.isnan(goodTrueData)], goodTrueData[~np.isnan(goodTrueData)])),
+                    goodTrueData[~np.isnan(goodTrueData)]) * 100)
+                ylabelString = 'Normalized RMSE (W/m$^2$/nm)'
+                realTitleString = 'Normalized RMSE'
+        else:
+            # If there is nothing in the bin, just record NaN for that bin:
+            sqdf = np.nan
+        SQDF.append(sqdf)
+        i += 1
+    # Plot the results for a sanity check:
+    titleFontSize = 20
+    fontSize = 18
+    labelSize = 16
+    plt.figure(figsize=(12, 8))
+    plt.plot(binCenters, SQDF, 'mo-')
+    plt.xlabel('F10.7 (sfu)', fontsize=fontSize)
+    plt.ylabel(ylabelString, fontsize=fontSize)
+    plt.tick_params(axis='both', labelsize=labelSize)
+    if titleStr != None:
+        plt.suptitle(realTitleString+' vs. F10.7: '+titleStr+' Angstroms', fontsize=titleFontSize)
+    if saveLoc != None:
+        plt.savefig(saveLoc+realTitleString.replace(' ', '_')+'vsF107_'+titleStr.replace('.', '_')+'.png', dpi=300)
+    return binCenters, SQDF
 
 def round_mult(num, divisor, direction='down'):
     """
