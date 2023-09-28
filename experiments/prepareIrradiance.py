@@ -243,15 +243,14 @@ if __name__=="__main__":
 
     # Plot the time series of irradiance for NEUVAC and TIMED/SEE for each band:
     for i in range(neuvacBands.shape[0]):
-        i = 16
         plt.figure()
         plt.plot(myIrrTimesSEE, rebinnedIrrDataFixed[:, i], label='SEE')
         plt.plot(times, neuvacIrr[:, i], label='NEUVAC')
         # plt.plot(F107TimesSeeSubset, correctedNeuvacSubset[:, i], label='Corrected NEUVAC')
         plt.plot(myTimesFISM1, myIrradianceFISM1[:, i], label='FISM1')
-        plt.suptitle('Irradiance Timeseries: ' + str(neuvacMids[goodBands][i]) + ' Angstroms')
+        plt.suptitle('Irradiance Timeseries: ' + str(neuvacMids[i]) + ' Angstroms')
         plt.legend(loc='best')
-        plt.savefig(figures_directory + 'irradianceTimeSeries_' + str(neuvacMids[goodBands][i]) + '_Angstroms.png',
+        plt.savefig(figures_directory + 'irradianceTimeSeries_' + str(neuvacMids[i]) + '_Angstroms.png',
                     dpi=300)
 
     # for i in range(neuvacResids.shape[1]):

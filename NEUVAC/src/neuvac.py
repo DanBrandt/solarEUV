@@ -126,7 +126,11 @@ def neuvacEUV(f107, f107a, bandLim=False):
             if WAVEL[j] != WAVES[j]:
                 euvIrradiance[i, k] = 0.1 * dWave * spectralIrradiance(euvFlux[i, k], wvavg, dWave)
             else:
-                euvIrradiance[i, k] = spectralIrradiance(euvFlux[i, k], wvavg)  # waveTable[j, 0]
+                # if WAVEL[j] < 1000:
+                #     factor = 500
+                # else:
+                #     factor = 1000
+                euvIrradiance[i, k] = wvavg * spectralIrradiance(euvFlux[i, k], wvavg)  # waveTable[j, 0]
             k += 1
     if bandLim: # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
         return euvFlux[:, 7:44] #15:52]

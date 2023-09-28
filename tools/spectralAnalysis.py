@@ -16,7 +16,7 @@ def spectralIrradiance(photonFlux, wavelength, dWavelength=None):
     """
     Convert the photon flux to the corresponding spectral irradiance, given a specific wavelength.
     :param: photonFlux: ndarray, float, or int
-        Photon flux in units of photons s^-1 m^-2.
+        Photon flux in units of photons s^-1 m^-2. For a singular wavelength, units are photons m^-2
     :param: wavelength: float
         A specific wavelength in Angstroms.
     :param: dWavelength: float or int
@@ -28,7 +28,7 @@ def spectralIrradiance(photonFlux, wavelength, dWavelength=None):
     if dWavelength != None:
         irradiance = photonFlux * photonEnergy * (1./(dWavelength*0.1)) # Multiply the denominator by 0.1 in order to convert from an Angstrom interval to a nanometer interval.
     else:
-        irradiance = photonFlux * photonEnergy
+        irradiance = photonFlux * photonEnergy / wavelength
     return irradiance
 
 def spectralFlux(irradiance, wavelength, dWavelength=10):
