@@ -9,6 +9,7 @@ import matplotlib
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from sklearn.metrics import mean_squared_error
+from datetime import datetime
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -130,6 +131,28 @@ if __name__=="__main__":
     myTimesFISM1, myIrradianceFISM1 = obtainFism1(myFism1Files, euv_data_59, saveLoc=fism1_spectra_folder)
     # FISM1 data extends between 1990-01-01; 00:00 and 2018-04-10; 00:00.
 
+    # Compute correction factors (by band), from ratios between NEUVAC and FISM1:
+    # A: Isolate the times that NEUVAC corresponds to FISM1:
+    relevantNEUVACTimes = []
+    relevantNEUVACIndices = []
+    for i in range(len(myTimesFISM1)):
+        res = toolbox.find_nearest(times, myTimesFISM1[i])
+        relevantNEUVACTimes.append( times[res[0]] )
+        relevantNEUVACIndices.append( res[0] )
+    neuvacIrrSubset = neuvacIrr[relevantNEUVACIndices, :]
+    neuvacFism1Ratios = np.divide(neuvacIrrSubset, myIrradianceFISM1)
+    meanFactors = []
+    for i in range(neuvacFism1Ratios.shape[-1]):
+        meanFactors.append( np.nanmean(neuvacFism1Ratios[:, i][~np.isnan(neuvacFism1Ratios[:, i])]) )
+    plt.figure()
+    for i in range(neuvacFism1Ratios.shape[-1]):
+        plt.plot(neuvacFism1Ratios[:, i])
+    # B: Apply the corrections and view them:
+    correctedNeuvacIrr = []
+    for i in range(neuvacIrr.shape[-1]):
+        correctedNeuvacIrr.append(neuvacIrr[:, i] / meanFactors[i])
+    correctedNeuvacIrr = np.asarray(correctedNeuvacIrr).T
+
     # FISM2 Results:
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59, saveLoc=fism2_spectra_folder)
@@ -150,6 +173,46 @@ if __name__=="__main__":
     # TIMED/SEE data extends between 2002-01-22;12:00 and 2023-08-27; 12:00.
 
     # ------------------------------------------------------------------------------------------------------------------
+    # Plot the spectra for a single day:
+    neuvacBands = np.flipud(neuvac.waveTable)
+    neuvacBinWidths = neuvacBands[:, 1] - neuvacBands[:, 0]
+    neuvacMids = 0.5*(neuvacBands[:, 0] + neuvacBands[:, 1])
+    chosenTime = times[-1000] # [-1000]
+    locNEUVAC = toolbox.find_nearest(times, chosenTime)
+    locFISM1 = toolbox.find_nearest(myTimesFISM1, chosenTime)
+    locFISM2 = toolbox.find_nearest(myIrrTimesFISM2, chosenTime)
+    locSEE = toolbox.find_nearest(myIrrTimesSEE, chosenTime)
+    plt.figure()
+    # Multiply NEUVAC by bin widths; plot everything else as normal:
+    # modifiedNeuvacIrr = np.asarray([a*b for a,b in zip(neuvacIrr[locNEUVAC[0], :], neuvacBinWidths)])
+    # modifiedNeuvacIrr = np.asarray([a*b for a,b in zip(neuvacFlux[locNEUVAC[0], :], neuvacBinWidths)])#, label='NEUVAC', marker='o') # neuvacIrr[locNEUVAC[0], :]
+    # Find the non-singular bins and modify the spectrum:
+    # inds = np.where(neuvacBinWidths != 0)
+    # modifiedNeuvacIrr = neuvacIrr[locNEUVAC[0], :][inds]*5
+    plt.plot(neuvacMids, neuvacIrr[locNEUVAC[0], :], label='NEUVAC', marker='o', linestyle=None) # modifiedNeuvacIrr
+    plt.plot(neuvacMids, correctedNeuvacIrr[locNEUVAC[0], :], label='Corrected NEUVAC', marker='o', linestyle=None)
+    plt.plot(neuvacMids, myIrradianceFISM1[locFISM1[0], :], label='FISM1', marker='o')
+    # Plot the ratio:
+    # plt.plot(neuvacMids, np.divide(neuvacIrr[locNEUVAC[0], :], myIrradianceFISM1[locFISM1[0], :]), label='Ratio', marker='o', linestyle=None)
+    # plt.plot(neuvacMids, myIrrDataAllFISM2[locFISM2[0], :], label='FISM2', marker='o')
+    plt.plot(neuvacMids, rebinnedIrrData[locSEE[0], :], label='SEE', marker='o')
+    # Plot vertical lines at select locations:
+    # vertInds = [3, 6, 9, 43, 46, 48, 52, 55]
+    # for index in vertInds:
+    #     plt.axvline(x=neuvacMids[index], linestyle='--', color='k')
+    # plt.plot(neuvacMids, neuvacIrr[locNEUVAC[0], :], marker='o', color='b', linestyle=None)
+    plt.xlabel('Wavelength (Angstroms)')
+    plt.ylabel('Irradiance')
+    plt.title('Spectrum for '+datetime.strftime(chosenTime, '%Y-%m-%dT%H:%M:%S'))
+    plt.legend(loc='best')
+    # Spectrum Ratio (SEE/NEUVAC):
+    # ratioVals = np.divide(rebinnedIrrData[locSEE[0], :], neuvacIrr[locNEUVAC[0], :])
+    # modifiedRatioVals = ratioVals[inds]*5
+    # plt.figure()
+    # plt.plot(neuvacMids[inds], modifiedRatioVals)
+    # plt.suptitle('SEE/NEUVAC Spectrum Ratio for ' + datetime.strftime(chosenTime, '%Y-%m-%dT%H:%M:%S')+'(No Singular Bands)')
+
+    # ------------------------------------------------------------------------------------------------------------------
     # ANALYSIS OF RESIDUALS:
     # Identify the bands in SEE to actually consider:
     goodBands = rebinnedIrrData.any(0)
@@ -160,6 +223,8 @@ if __name__=="__main__":
     F107ASubset = F107A[F107indices]
     neuvacSubset = neuvacIrr[F107indices, :]
     neuvacSubset = neuvacSubset[:, goodBands]
+    correctedNeuvacSubset = correctedNeuvacIrr[F107indices, :]
+    correctedNeuvacSubset = correctedNeuvacSubset[:, goodBands]
     # Find elements in TIMED/SEE data nearest to the subsetted F107 times:
     closestSeeInds = []
     closestSeeTimes = []
@@ -177,8 +242,27 @@ if __name__=="__main__":
     orderedF107SubsetInds = np.argsort(F107SeeSubset)
 
     # Plot the time series of irradiance for NEUVAC and TIMED/SEE for each band:
+    for i in range(neuvacBands.shape[0]):
+        i = 16
+        plt.figure()
+        plt.plot(myIrrTimesSEE, rebinnedIrrDataFixed[:, i], label='SEE')
+        plt.plot(times, neuvacIrr[:, i], label='NEUVAC')
+        # plt.plot(F107TimesSeeSubset, correctedNeuvacSubset[:, i], label='Corrected NEUVAC')
+        plt.plot(myTimesFISM1, myIrradianceFISM1[:, i], label='FISM1')
+        plt.suptitle('Irradiance Timeseries: ' + str(neuvacMids[goodBands][i]) + ' Angstroms')
+        plt.legend(loc='best')
+        plt.savefig(figures_directory + 'irradianceTimeSeries_' + str(neuvacMids[goodBands][i]) + '_Angstroms.png',
+                    dpi=300)
+
     # for i in range(neuvacResids.shape[1]):
-    #     plt.figure(); plt.plot(closestSeeVals[:, i], label='SEE'); plt.plot(neuvacSubset[:, i], label='NEUVAC'); plt.legend(loc='best')
+    #     plt.figure()
+    #     plt.plot(closestSeeTimes, closestSeeVals[:, i], label='SEE')
+    #     plt.plot(F107TimesSeeSubset, neuvacSubset[:, i], label='NEUVAC')
+    #     # plt.plot(F107TimesSeeSubset, correctedNeuvacSubset[:, i], label='Corrected NEUVAC')
+    #     plt.plot(myTimesFISM1, myIrradianceFISM1[:, goodBands][:, i], label='FISM1')
+    #     plt.suptitle('Irradiance Timeseries: '+str(neuvacMids[goodBands][i])+' Angstroms')
+    #     plt.legend(loc='best')
+    #     plt.savefig(figures_directory + 'irradianceTimeSeries_'+str(neuvacMids[goodBands][i])+'_Angstroms.png', dpi=300)
 
     # Plot the residuals in each band as function of F10.7:
     modelParams = []
@@ -202,7 +286,6 @@ if __name__=="__main__":
         RMSvalsByBand.append(rms)
 
     # Display the RMS by band:
-    neuvacBands = np.flipud(neuvac.waveTable)
     goodNeuvacBands = neuvacBands[goodBands, :]
     neuvacBandsMids = 0.5*(goodNeuvacBands[:, 1] + goodNeuvacBands[:, 0])
     plt.figure(figsize=(10,8))
@@ -220,10 +303,20 @@ if __name__=="__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # ANALYSIS FOR SELECT WAVELENGTH BANDS (one near 10A, 100A, and 1000A)
 
+    # Time series plot:
+    for bandIndex in range(neuvacIrr.shape[1]):
+        plt.figure()
+        plt.plot(times, neuvacIrr[:, bandIndex], label='NEUVAC')
+        plt.plot(myIrrTimesFISM2, myIrrDataAllFISM2[:, bandIndex], label='FISM2')
+        plt.plot(myIrrTimesSEE, rebinnedIrrDataFixed[:, bandIndex], label='SEE')
+        plt.legend(loc='best')
+        plt.title('Irradiance vs Time: Band '+str(bandIndex+1)+' ('+str(neuvacMids[bandIndex])+'Angstroms)')
+        plt.savefig(figures_directory+'Resids/IrrTimeSeries_Band'+str(bandIndex+1)+'.png', dpi=300)
+
     # 1. SEE measurements vs F107 and NEUVAC vs F107 on the same plot.  You can color code the dots. (This would be used for a paper)
     residsDir = figures_directory+'Resids/'
-    # Isolate the bands 8-16A (12A), 100-150A (125A), and 1000-1050A (1025A):
-    chosenBands = [0, 5, 39]
+    # Isolate the bands 8-16A (12A - 0th band), 100-150A (125A - 5th band), and 1000-1050A (1025A - 39th band):
+    chosenBands = [18, 32, 41]
     for bandIndex in chosenBands:
         plt.figure(figsize=(12, 8))
         # NEUVAC:

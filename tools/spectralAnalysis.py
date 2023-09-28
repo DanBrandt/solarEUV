@@ -25,7 +25,7 @@ def spectralIrradiance(photonFlux, wavelength, dWavelength=None):
         The corresponding spectral irradiance in units of W/m^2/nm.
     """
     photonEnergy = (h*c) / (wavelength*1e-10) # Convert the wavelength in the denominator to meters.
-    if dWavelength != 0:
+    if dWavelength != None:
         irradiance = photonFlux * photonEnergy * (1./(dWavelength*0.1)) # Multiply the denominator by 0.1 in order to convert from an Angstrom interval to a nanometer interval.
     else:
         irradiance = photonFlux * photonEnergy

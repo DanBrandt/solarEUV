@@ -121,13 +121,16 @@ def neuvacEUV(f107, f107a, bandLim=False):
                          RidleySlopes[j, 2] * (f107a[i] - f107[i]) + RidleyIntercepts[j]
             wvavg = (WAVEL[j] + WAVES[j])/2.
             euvFlux[i, k] = solarFlux[i, k] * wvavg * 1e-10 / (6.626e-34 * 2.998e8) # / 10.
-            # Proper formal calculation of irradiance:
+            # Calculation of irradiance:
             dWave = WAVEL[j] - WAVES[j]
-            euvIrradiance[i, k] = spectralIrradiance(euvFlux[i, k], wvavg, dWave) # waveTable[j, 0]
+            if WAVEL[j] != WAVES[j]:
+                euvIrradiance[i, k] = 0.1 * dWave * spectralIrradiance(euvFlux[i, k], wvavg, dWave)
+            else:
+                euvIrradiance[i, k] = spectralIrradiance(euvFlux[i, k], wvavg)  # waveTable[j, 0]
             k += 1
     if bandLim: # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
         return euvFlux[:, 7:44] #15:52]
-    return euvFlux, euvIrradiance
+    return euvFlux, np.squeeze(euvIrradiance)
 
 def correlatedNEUVAC(meanSpectra, corrModels, f107):
     """
