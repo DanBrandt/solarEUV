@@ -83,7 +83,7 @@ waveTable = np.array([
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions:
-def neuvacEUV(f107, f107a, bandLim=False):
+def neuvacEUV(f107, f107a, bandLim=False, calibrate=False):
     """
     Use a parametric model to compute solar flux in the 59 conventional wavelength bands used by Aether/GITM.
     :param f107: ndarray
@@ -92,6 +92,8 @@ def neuvacEUV(f107, f107a, bandLim=False):
         81-day center-averaged F10.7 values; must be the same length as f107.
     :param bandLim: bool
         If True, limits the outputted bands to just those 37 used by EUVAC.
+    :param calibrate: bool
+        If True, applies empirically-determined correction factors to specific wavelength bands.
     :return euvFlux: ndarray
         A nxm ndarray where n is the number of EUV flux values and m is the number of wavelength bands.
     :return euvIrradiance: ndarray

@@ -10,14 +10,12 @@ from datetime import datetime, timedelta
 import matplotlib
 matplotlib.use('Qt5Agg')
 from netCDF4 import Dataset
-import matplotlib.pyplot as plt
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
 from tools.EUV.fism2_process import read_euv_csv_file
-from tools.EUV.fism2_process import isolate_fism, rebin_fism
-from tools.toolbox import find_nearest
+from tools.EUV.fism2_process import rebin_fism
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------

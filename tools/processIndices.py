@@ -2,9 +2,10 @@
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports
+from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
-import sys
+import sys, csaps
 import matplotlib
 matplotlib.use('Qt5Agg')
 # import matplotlib.pyplot as plt
@@ -12,7 +13,7 @@ matplotlib.use('Qt5Agg')
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local imports:
-from toolbox import uniformSample, imputeData, rollingAverage, savePickle
+from toolbox import uniformSample, imputeData, rollingAverage, rollingStd, savePickle
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -66,15 +67,165 @@ def readF107(filename):
             i += 1
 
     return np.asarray(times), np.asarray(f107)
+
+def readOMNI(dataFile, headerFile):
+    """
+    Read in file from an OMNI data and parse it according to the specified format.
+    :param dataFile: str
+        The name of the file where the OMNI data is stored.
+    :param headerFile: str
+        The name of the file containing header information for the OMNI data.
+    :return:
+    omniTimes: ndarray
+        A 1D array of datetimes for the omni data.
+    omniLabels: ndarray
+        A 1D array of strings of each of the variables in the OMNI data.
+    omniDataArray: ndarray
+        A 2D array with all of the OMNI data. The shape is nxm, where n is the number of time samples (each hour) and
+        m is the number of variables collected at each time sample.
+    """
+    # First, open the header file and obtain the variable names:
+    with open(headerFile) as omniHeaderFile:
+        omniHeaderInfo = omniHeaderFile.readlines()
+        # Ignore the initial lines in the file and just obtain the relevant info:
+        omniVariables = omniHeaderInfo[4:]
+        # Parse the variables in each line and collect them into a list of indices and a list of variable names:
+        omniIndices = []
+        omniVariableNames = []
+        for element in omniVariables:
+            segmentedElement = element.split()
+            omniIndices.append(int(int(segmentedElement[0])-1))
+            if segmentedElement[1] == 'Scalar' or segmentedElement[1] == 'Vector':
+                omniVariableNames.append('Avg '+segmentedElement[1]+' B')
+            else:
+                omniVariableNames.append(segmentedElement[1].replace('_', ' ').replace('-', ' ').replace(',', ''))
+        numVars = len(omniVariableNames)
+        omniLabels = np.asarray(omniVariableNames[3:])
+
+    # Second, open the data file and read in the data:
+    with open(dataFile) as omniDataFile:
+        omniData = omniDataFile.readlines()
+        # Go over each line and collect the variables corresponding to each element in the line. For time values, collect them into datetime objects:
+        omniDataArray = np.zeros((len(omniData), numVars-3))
+        omniTimes = []
+        for row in range(omniDataArray.shape[0]):
+            omniLine = omniData[row].split()
+            omniTimes.append(datetime(int(omniLine[0]), 1, 1) + timedelta(days=int(omniLine[1]) - 1) + timedelta(
+                hours=int(omniLine[2])))
+            for column in range(omniDataArray.shape[1]+3):
+                if column > 2:
+                    omniDataArray[row, column-3] = float(omniLine[column])
+        omniTimes = np.asarray(omniTimes)
+    return omniTimes, omniLabels, omniDataArray
+
+def cleanF107(index_times, index_values, bad_value=999.9):
+    """
+    Given time stamps and observations of F10.7, determine the location of bad values (using the argument 'bad_value'),
+    and replace them with imputed data generated with CSAPS.
+    :param index_times: arraylike
+        An array or list of datetimes for each F10.7 value.
+    :param index_values: arraylike
+        An array or list of F10.7 values with the same shape as index_times.
+    :param bad_value: float or int
+        A single value corresponding to the bad values to be removed and imputed over. Default is 999.9.
+    :return clean_values: arraylike
+        The gap-filled/imputed data.
+    """
+    clean_values = index_values.copy()
+    good_data_inds = np.logical_not(index_values >= bad_value)
+    bad_data_inds = np.logical_not(good_data_inds)
+
+    full_times_seconds = np.asarray([(x - index_times[0]).total_seconds() for x in index_times])
+
+    good_data = clean_values[good_data_inds]
+    good_times = full_times_seconds[good_data_inds]
+    bad_times = full_times_seconds[bad_data_inds]
+
+    yi = csaps.csaps(good_times, good_data, bad_times, smooth=0)
+
+    subsetData = np.zeros_like(clean_values)
+    subsetData[good_data_inds] = clean_values[good_data_inds]
+    subsetData[bad_data_inds] = yi
+
+    subsetInds = np.full(clean_values.shape, True)  # No subsetting since bad values were filled in
+
+    # Since subsetting took place, change the actual values in the original data:
+    clean_values[subsetInds] = subsetData
+
+    # Plot the results for a sanity check:
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.plot(index_times, index_values, label='Original')
+    # plt.plot(index_times[subsetInds], clean_values[subsetInds], label='New')
+    # plt.legend(loc='best')
+
+    return clean_values
+
+def F107filter(index_times, index_values, window_length=81, n=2):
+    """
+    Filter F10.7 values like so:
+    1. Compute the running average and standard deviation.
+    2. Identify the locations of values OUTSIDE the running average +/- n*stddev.
+    3. For each datapoint identified in (2), replace it with the running average +/- n*stddev, depending on the sign.
+    :param index_times: arraylike
+        An array or list of datetime values for each F10.7 value.
+    :param index_values: arraylike
+        An array or list of F10.7 values with the same shape as index_times.
+    :param window_length: int
+        The length of the running window over which to compute the running average and standard deviation. Default is 81.
+    :param n: int
+        The factor by which the standard deviation will be multiplied to determine which values should be replaced.
+        Default is 2.
+    :return filteredF107: arraylike
+        The resulting filtered F10.7.
+    """
+    filteredF107 = index_values.copy()
+    rollingMeanF107 = rollingAverage(index_values, window_length=window_length)
+    rollingStdF107 = rollingStd(index_values, window_length=window_length)
+    upperStdBoundary = np.add(rollingMeanF107, n*rollingStdF107)
+    lowerStdBoundary = np.subtract(rollingMeanF107, n*rollingStdF107)
+    # Identify locations where F10.7 EXCEED the stddev threshold:
+    badLocsUpper = np.where(index_values > upperStdBoundary)[0]
+    badTimesUpper = index_times[badLocsUpper]
+    # Identify locations where F10.7 FALLS BELOW the stddev threshold:
+    badLocsLower = np.where(index_values < lowerStdBoundary)[0]
+    badTimesLower = index_times[badLocsLower]
+    # Plotting the detected anomalous data:
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(index_times, index_values, label='Original')
+    plt.fill_between(index_times, upperStdBoundary, lowerStdBoundary, label='Standard Deviation Boundary', alpha=0.5)
+    plt.plot(index_times, rollingMeanF107, label='Rolling Mean')
+    # Plot the bad locs for EXCESS error:
+    for i in range(len(badTimesUpper)):
+        plt.axvline(x=badTimesUpper[i], color='k', linestyle='-')
+    # Plot the bad locs for DEFECT error:
+    for i in range(len(badTimesLower)):
+        plt.axvline(x=badTimesLower[i], color='k', linestyle='--')
+    plt.legend(loc='best')
+    # IMPUTATION: Replace excesses with n*stddev
+    filteredF107[badLocsUpper] = upperStdBoundary[badLocsUpper]
+    # IMPUTATION: Replace defecsts with n*stddev
+    filteredF107[badLocsLower] = lowerStdBoundary[badLocsLower]
+    # Plot the resulting filtered data, along with the original data:
+    # plt.figure()
+    # plt.plot(index_times, index_values, label='Original')
+    # plt.plot(index_times, filteredF107, label='Filtered')
+    # plt.suptitle('Penticton F10.7 and Filtered Penticton F10.7 (81-day 2$\sigma$ criterion)')
+    # plt.xlabel('Time')
+    # plt.ylabel('F10.7 (sfu)')
+    # plt.legend(loc='best')
+    return filteredF107
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Execution
 if __name__=="__main__":
-    saveLoc = '../solarIndices/F107/'
-    fname = '../solarIndices/F107/F107_1947_1996.txt'
-    fname1 = '../solarIndices/F107/F107_1996_2007.txt'
-    fname2 = '../solarIndices/F107/F107_current.txt'
+    # PENTICTON DATA
+    saveLoc = '../solarIndices/F107/Penticton/'
+    fname = '../solarIndices/F107/Penticton/F107_1947_1996.txt'
+    fname1 = '../solarIndices/F107/Penticton/F107_1996_2007.txt'
+    fname2 = '../solarIndices/F107/Penticton/F107_current.txt'
     times, f107 = readF107(fname)
     times1, f1071 = readF107(fname1)
     times2, f1072 = readF107(fname2)
@@ -87,13 +238,29 @@ if __name__=="__main__":
     # Clean the data (through either gapification or imputation):
     cleanedTimes, cleanedF107 = imputeData(uniformTimes, uniformF107, method='interp', bad_values=0)
     # cleanedF107 = gapify(uniformF107, bad_value=0)
+    # Filter the data:
+    filteredF107 = F107filter(cleanedTimes, cleanedF107)
     # Compute the centered rolling 81-day average of F10.7:
-    averagedF107 = rollingAverage(cleanedF107, window_length=81)
+    averagedF107 = rollingAverage(filteredF107, window_length=81)
     # Plot as a sanity-check:
     # plt.figure(); plt.plot(cleanedTimes, cleanedF107); plt.plot(cleanedTimes, averagedF107); plt.show()
     # Save the data to pickle files:
     savePickle(cleanedTimes, saveLoc+'F107times.pkl')
     savePickle(cleanedF107, saveLoc+'F107vals.pkl')
     savePickle(averagedF107, saveLoc+'F107averageVals.pkl')
+    # -------------------------------
+    # Do all of the above with NASA OMNIWEB data:
+    omniSaveloc = '../solarIndices/F107/OMNIWeb/'
+    omniDataFile = '../solarIndices/F107/OMNIWeb/omni2_daily_r1GBiifQTW.lst'
+    omniHeaderFile = '../solarIndices/F107/OMNIWeb/omni2_daily_r1GBiifQTW.fmt'
+    omniTimes, omniLabels, omniData = readOMNI(omniDataFile, omniHeaderFile)
+    omniF107 = np.squeeze(omniData)
+    cleanOmniF107 = cleanF107(omniTimes, omniF107, bad_value=999.9)
+    filteredOMNIF107 = F107filter(omniTimes, cleanOmniF107)
+    averagedOmniData = rollingAverage(filteredOMNIF107, window_length=81)
+    # Save the data to pickle files:
+    savePickle(omniTimes, omniSaveloc + 'OMNIF107times.pkl')
+    savePickle(filteredOMNIF107, omniSaveloc + 'OMNIF107vals.pkl')
+    savePickle(averagedOmniData, omniSaveloc + 'OMNIF107averageVals.pkl')
     # -------------------------------
     sys.exit(0)

@@ -76,24 +76,51 @@ euvacTable = np.array([
     [36, 1031.91, 1031.91, 2.100, 5.2833e-3],
     [37, 1000, 1050, 2.467, 4.3750e-3]
     ])
+# Correction factors for NEUVAC:
+correctionData = [[3, 7, 8, 9, 12, 13, 15, 16, 18, 25, 28, 35, 40, 43, 44, 46, 48],
+                  [5, 1/1.5, 0.5, 2, 10, 10, 2, 5, 5, 10, 2.5, 4, 3, 10, 2, 2, 100]]
+
+# Correction factors for FISM1:
+correctionDataFISM1 = [[8, 12, 13, 16, 18, 25, 28, 35, 40, 43, 46, 48],
+                       [0.5, 10, 10, 5, 5, 10, 2.5, 4, 3, 10, 0.5, 100]]
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Execution
 if __name__=="__main__":
-    # Load in F10.7 data:
-    timesData = '../solarIndices/F107/F107times.pkl'
-    F107Data = '../solarIndices/F107/F107vals.pkl'
-    F107AveData = '../solarIndices/F107/F107averageVals.pkl'
-    times = toolbox.loadPickle(timesData)
-    F107 = toolbox.loadPickle(F107Data)
-    F107A = toolbox.loadPickle(F107AveData)
+    # Load in F10.7 data (Penticton, CA):
+    pentictonTimesData = '../solarIndices/F107/Penticton/F107times.pkl'
+    pentictonF107Data = '../solarIndices/F107/Penticton/F107vals.pkl'
+    pentictonF107AveData = '../solarIndices/F107/Penticton/F107averageVals.pkl'
+    pentictonTimes = toolbox.loadPickle(pentictonTimesData)
+    pentictonF107 = toolbox.loadPickle(pentictonF107Data)
+    pentictonF107A = toolbox.loadPickle(pentictonF107AveData)
     # F10.7 data extends between 1947-02-14; 12:00 to 2008-02-03; 12:00.
+    # Load in F10.7 data (OMNIWeb):
+    omniTimesData = '../solarIndices/F107/OMNIWeb/OMNIF107times.pkl'
+    omniF107Data = '../solarIndices/F107/OMNIWeb/OMNIF107vals.pkl'
+    omniF107AveData = '../solarIndices/F107/OMNIWeb/OMNIF107averageVals.pkl'
+    omniTimes = toolbox.loadPickle(omniTimesData)
+    omniF107 = toolbox.loadPickle(omniF107Data)
+    omniF107A = toolbox.loadPickle(omniF107AveData)
+    # F10.7 data extends between 1963-11-28; 12:00 to 2023-09-27; 12:00.
+    times = omniTimes
+    F107 = omniF107
+    F107A = omniF107A
 
     # NOTE: NEUVAC, EUVAC, and HEUVAC return spectral fluxes. They'll need to be converted to spectral irradiance.
 
     # NEUVAC Results:
     neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A)
+    neuvacIrrCal = neuvacIrr.copy()
+
+    # NEUVAC alibration:
+    for i in range(neuvacIrr.shape[1]):
+        if i in correctionData[0]:
+            validIndex = np.where(np.asarray(correctionData[0]) == i)[0][0]
+            neuvacIrrCal[:, i] = neuvacIrrCal[:, i]/correctionData[1][validIndex]
+
+    # Correlation matrix:
     neuvacCorr = toolbox.covariates(neuvacIrr) # Correlation matrix
 
     # EUVAC Results:
@@ -171,6 +198,7 @@ if __name__=="__main__":
     rebinnedIrrDataFixed = rebinnedIrrData.copy()
     rebinnedIrrDataFixed[rebinnedIrrDataFixed == 0] = np.nan
     # TIMED/SEE data extends between 2002-01-22;12:00 and 2023-08-27; 12:00.
+    # Questionable wavelengths (with scale factor): 1025 (10), 975 (4), 775 (4), 625 (2.5), 575 (10), 375 (50), 325 (4), 284.15 (2.5), 275 (12)
 
     # ------------------------------------------------------------------------------------------------------------------
     # Plot the spectra for a single day:
@@ -190,7 +218,7 @@ if __name__=="__main__":
     # inds = np.where(neuvacBinWidths != 0)
     # modifiedNeuvacIrr = neuvacIrr[locNEUVAC[0], :][inds]*5
     plt.plot(neuvacMids, neuvacIrr[locNEUVAC[0], :], label='NEUVAC', marker='o', linestyle=None) # modifiedNeuvacIrr
-    plt.plot(neuvacMids, correctedNeuvacIrr[locNEUVAC[0], :], label='Corrected NEUVAC', marker='o', linestyle=None)
+    # plt.plot(neuvacMids, correctedNeuvacIrr[locNEUVAC[0], :], label='Corrected NEUVAC', marker='o', linestyle=None)
     plt.plot(neuvacMids, myIrradianceFISM1[locFISM1[0], :], label='FISM1', marker='o')
     # Plot the ratio:
     # plt.plot(neuvacMids, np.divide(neuvacIrr[locNEUVAC[0], :], myIrradianceFISM1[locFISM1[0], :]), label='Ratio', marker='o', linestyle=None)
@@ -243,25 +271,56 @@ if __name__=="__main__":
 
     # Plot the time series of irradiance for NEUVAC and TIMED/SEE for each band:
     for i in range(neuvacBands.shape[0]):
+        # 10-225, 11-256.3
+        # Indexing and subsetting for two neighboring (specific) bands:
+        # yearStart = datetime(1996, 1, 1)
+        # yearEnd = datetime(2006, 1, 1)
+        # subInds = np.where((times >= yearStart) & (times <= yearEnd))[0]
+        # subIndsSEE = np.where((myIrrTimesSEE >= yearStart) & (myIrrTimesSEE <= yearEnd))[0]
+        # subIndsFISM1 = np.where((myTimesFISM1 >= yearStart) & (myTimesFISM1 <= yearEnd))[0]
+        # i=10
+        # fig, ax = plt.subplots(2, 2, figsize=(12, 8), sharex=True)
+        # ax[0, 0].plot(myIrrTimesSEE[subIndsSEE], rebinnedIrrDataFixed[:, i][subIndsSEE], label='SEE')
+        # ax[0, 0].plot(times[subInds], neuvacIrr[:, i][subInds], label='NEUVAC')
+        # ax[0, 0].plot(myTimesFISM1[subIndsFISM1], myIrradianceFISM1[:, i][subIndsFISM1], label='FISM1')
+        # ax[1, 0].plot(times[subInds], F107[subInds], 'r-', label='F10.7')
+        # ax[1, 0].plot(times[subInds], F107A[subInds], 'c--', label='F10.7A')
+        # ax[1, 0].legend(loc='best')
+        # ax[0, 0].set_title('Irradiance Timeseries: ' + str(neuvacMids[i]) + ' Angstroms')
+        # ax[0, 0].legend(loc='best')
+        # ax[0, 0].set_xlabel('Time')
+        # ax[0, 0].set_ylabel('Irradiance (W/m$^2$)')
+        # #
+        # ax[0, 1].plot(myIrrTimesSEE[subIndsSEE], rebinnedIrrDataFixed[:, i+1][subIndsSEE], label='SEE')
+        # ax[0, 1].plot(times[subInds], neuvacIrr[:, i+1][subInds], label='NEUVAC')
+        # ax[0, 1].plot(myTimesFISM1[subIndsFISM1], myIrradianceFISM1[:, i+1][subIndsFISM1], label='FISM1')
+        # ax[1, 1].plot(times[subInds], F107[subInds], 'r-', label='F10.7')
+        # ax[1, 1].plot(times[subInds], F107A[subInds], 'c--', label='F10.7A')
+        # ax[1, 1].legend(loc='best')
+        # ax[0, 1].set_title('Irradiance Timeseries: ' + str(neuvacMids[i+1]) + ' Angstroms')
+        # ax[0, 1].legend(loc='best')
+        # ax[0, 1].set_xlabel('Time')
+
+        # Correction factors:
+        if i in correctionDataFISM1[0]:
+            factorIndex = np.where(np.asarray(correctionDataFISM1[0]) == i)[0][0]
+            factor = correctionDataFISM1[1][factorIndex]
+        else:
+            factor = 1
+
+        # Time series for an individual band:
         plt.figure()
         plt.plot(myIrrTimesSEE, rebinnedIrrDataFixed[:, i], label='SEE')
-        plt.plot(times, neuvacIrr[:, i], label='NEUVAC')
-        # plt.plot(F107TimesSeeSubset, correctedNeuvacSubset[:, i], label='Corrected NEUVAC')
-        plt.plot(myTimesFISM1, myIrradianceFISM1[:, i], label='FISM1')
+        plt.plot(times, neuvacIrrCal[:, i], label='NEUVAC')
+        plt.plot(myTimesFISM1, myIrradianceFISM1[:, i]/factor, label='FISM1')
+        if i == 12:
+            plt.ylim([0, 0.0002])
+        if i == 16:
+            plt.ylim([0, 0.0006])
         plt.suptitle('Irradiance Timeseries: ' + str(neuvacMids[i]) + ' Angstroms')
         plt.legend(loc='best')
         plt.savefig(figures_directory + 'irradianceTimeSeries_' + str(neuvacMids[i]) + '_Angstroms.png',
                     dpi=300)
-
-    # for i in range(neuvacResids.shape[1]):
-    #     plt.figure()
-    #     plt.plot(closestSeeTimes, closestSeeVals[:, i], label='SEE')
-    #     plt.plot(F107TimesSeeSubset, neuvacSubset[:, i], label='NEUVAC')
-    #     # plt.plot(F107TimesSeeSubset, correctedNeuvacSubset[:, i], label='Corrected NEUVAC')
-    #     plt.plot(myTimesFISM1, myIrradianceFISM1[:, goodBands][:, i], label='FISM1')
-    #     plt.suptitle('Irradiance Timeseries: '+str(neuvacMids[goodBands][i])+' Angstroms')
-    #     plt.legend(loc='best')
-    #     plt.savefig(figures_directory + 'irradianceTimeSeries_'+str(neuvacMids[goodBands][i])+'_Angstroms.png', dpi=300)
 
     # Plot the residuals in each band as function of F10.7:
     modelParams = []
