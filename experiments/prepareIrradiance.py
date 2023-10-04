@@ -76,13 +76,11 @@ euvacTable = np.array([
     [36, 1031.91, 1031.91, 2.100, 5.2833e-3],
     [37, 1000, 1050, 2.467, 4.3750e-3]
     ])
-# Correction factors for NEUVAC:
-correctionData = [[3, 7, 8, 9, 12, 13, 15, 16, 18, 25, 28, 35, 40, 43, 44, 46, 48],
-                  [5, 1/1.5, 0.5, 2, 10, 10, 2, 5, 5, 10, 2.5, 4, 3, 10, 2, 2, 100]]
 
-# Correction factors for FISM1:
-correctionDataFISM1 = [[8, 12, 13, 16, 18, 25, 28, 35, 40, 43, 46, 48],
-                       [0.5, 10, 10, 5, 5, 10, 2.5, 4, 3, 10, 0.5, 100]]
+# Correction factors for NEUVAC:
+correctionDataTuples = [(3, 5.), (6, 2.), (9, 2.), (11, 2.), (12, 2.5), (15, 2.), (16, 1.5), (17, 1.5), (19, 1.5),
+                                (20, 2.), (22, 1.5), (30, 1.5), (34, 1.5), (39, 2.), (44, 1.5), (46, 2.), (48, 2.),
+                                (52, 2)]
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -115,10 +113,12 @@ if __name__=="__main__":
     neuvacIrrCal = neuvacIrr.copy()
 
     # NEUVAC alibration:
+    correctionDataIndices = [element[0] for element in correctionDataTuples]
+    correctionDataValues = [element[1] for element in correctionDataTuples]
     for i in range(neuvacIrr.shape[1]):
-        if i in correctionData[0]:
-            validIndex = np.where(np.asarray(correctionData[0]) == i)[0][0]
-            neuvacIrrCal[:, i] = neuvacIrrCal[:, i]/correctionData[1][validIndex]
+        if i in correctionDataIndices:
+            validIndex = np.where(np.asarray(correctionDataIndices) == i)[0][0]
+            neuvacIrrCal[:, i] = neuvacIrrCal[:, i]/correctionDataValues[validIndex]
 
     # Correlation matrix:
     neuvacCorr = toolbox.covariates(neuvacIrr) # Correlation matrix
@@ -174,7 +174,7 @@ if __name__=="__main__":
     plt.figure()
     for i in range(neuvacFism1Ratios.shape[-1]):
         plt.plot(neuvacFism1Ratios[:, i])
-    # B: Apply the corrections and view them:
+    # B: Apply the corrections:
     correctedNeuvacIrr = []
     for i in range(neuvacIrr.shape[-1]):
         correctedNeuvacIrr.append(neuvacIrr[:, i] / meanFactors[i])
@@ -210,6 +210,7 @@ if __name__=="__main__":
     locFISM1 = toolbox.find_nearest(myTimesFISM1, chosenTime)
     locFISM2 = toolbox.find_nearest(myIrrTimesFISM2, chosenTime)
     locSEE = toolbox.find_nearest(myIrrTimesSEE, chosenTime)
+
     plt.figure()
     # Multiply NEUVAC by bin widths; plot everything else as normal:
     # modifiedNeuvacIrr = np.asarray([a*b for a,b in zip(neuvacIrr[locNEUVAC[0], :], neuvacBinWidths)])
@@ -217,13 +218,17 @@ if __name__=="__main__":
     # Find the non-singular bins and modify the spectrum:
     # inds = np.where(neuvacBinWidths != 0)
     # modifiedNeuvacIrr = neuvacIrr[locNEUVAC[0], :][inds]*5
+    plt.plot(neuvacMids, rebinnedIrrData[locSEE[0], :], label='SEE', marker='o')
     plt.plot(neuvacMids, neuvacIrr[locNEUVAC[0], :], label='NEUVAC', marker='o', linestyle=None) # modifiedNeuvacIrr
-    # plt.plot(neuvacMids, correctedNeuvacIrr[locNEUVAC[0], :], label='Corrected NEUVAC', marker='o', linestyle=None)
+
+    # plt.plot(neuvacMids, neuvacIrrCal[locNEUVAC[0], :], label='Calibrated NEUVAC', marker='o', linestyle=None)
+    #plt.plot(neuvacMids, correctedNeuvacIrr[locNEUVAC[0], :], label='Corrected NEUVAC', marker='o', linestyle=None)
+
     plt.plot(neuvacMids, myIrradianceFISM1[locFISM1[0], :], label='FISM1', marker='o')
+
     # Plot the ratio:
     # plt.plot(neuvacMids, np.divide(neuvacIrr[locNEUVAC[0], :], myIrradianceFISM1[locFISM1[0], :]), label='Ratio', marker='o', linestyle=None)
     # plt.plot(neuvacMids, myIrrDataAllFISM2[locFISM2[0], :], label='FISM2', marker='o')
-    plt.plot(neuvacMids, rebinnedIrrData[locSEE[0], :], label='SEE', marker='o')
     # Plot vertical lines at select locations:
     # vertInds = [3, 6, 9, 43, 46, 48, 52, 55]
     # for index in vertInds:
@@ -301,22 +306,17 @@ if __name__=="__main__":
         # ax[0, 1].legend(loc='best')
         # ax[0, 1].set_xlabel('Time')
 
-        # Correction factors:
-        if i in correctionDataFISM1[0]:
-            factorIndex = np.where(np.asarray(correctionDataFISM1[0]) == i)[0][0]
-            factor = correctionDataFISM1[1][factorIndex]
-        else:
-            factor = 1
-
         # Time series for an individual band:
         plt.figure()
         plt.plot(myIrrTimesSEE, rebinnedIrrDataFixed[:, i], label='SEE')
         plt.plot(times, neuvacIrrCal[:, i], label='NEUVAC')
-        plt.plot(myTimesFISM1, myIrradianceFISM1[:, i]/factor, label='FISM1')
+        plt.plot(myTimesFISM1, myIrradianceFISM1[:, i], label='FISM1')
         if i == 12:
-            plt.ylim([0, 0.0002])
+            plt.ylim([0, 0.0012])
+        if i == 13:
+            plt.ylim([0, 0.00175])
         if i == 16:
-            plt.ylim([0, 0.0006])
+            plt.ylim([0, 0.0019])
         plt.suptitle('Irradiance Timeseries: ' + str(neuvacMids[i]) + ' Angstroms')
         plt.legend(loc='best')
         plt.savefig(figures_directory + 'irradianceTimeSeries_' + str(neuvacMids[i]) + '_Angstroms.png',
