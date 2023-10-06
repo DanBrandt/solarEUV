@@ -3,16 +3,17 @@
 # Developed by:
 # Aaron J. Ridley, Ph.D.
 # Daniel A. Brandt, Ph.D.
-# Erick F. Vega, M.S.
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level imports:
 import numpy as np
+from scipy.optimize import curve_fit
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Local
+# Local imports:
 from tools.spectralAnalysis import spectralIrradiance
+from tools.toolbox import find_nearest
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -83,9 +84,10 @@ waveTable = np.array([
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions:
-def neuvacEUV(f107, f107a, bandLim=False, calibrate=False):
+def neuvacEUV(f107, f107a, bandLim=False):
     """
     Use a parametric model to compute solar flux in the 59 conventional wavelength bands used by Aether/GITM.
+    This is the ORIGINAL NEUVAC model constructed by Aaron Ridley.
     :param f107: ndarray
         F10.7 values.
     :param f107a: ndarray
@@ -172,6 +174,93 @@ def correlatedNEUVAC(meanSpectra, corrModels, f107):
         lowerResults.append(meanSpectraWithNoiseLower)
     euvFluxCorr = np.squeeze(np.asarray([lowerResults, upperResults]))
     return euvFluxCorr
+
+def neuvacFit(f107Data, irrTimes, irrData):
+    """
+    Calculate entirely new empirical parametric fits between F10.7 data and solar EUV irradiance data, irrespective
+    of the number of wavelength bands the irradiance data is split into.
+    :param f107Data: list
+        A list where the first element is an arraylike of datetimes for each F10.7 value, the second element is an
+        arraylike of F10.7 values, and the third element is an arraylike of centered running 81-day averaged F10.7
+        values.
+    :param irrTimes: arraylike
+        An arraylike of datetimes for each solar EUV spectra in irrData.
+    :param irrData: ndarray
+        An array of solar EUV irradiance measurements or estimates (from FISM, TIMED/SEE, etc.), arranged such that
+    :param neuvacTable: ndarray
+        An array of coefficients with which to compute the irradiance in each bin.
+    """
+    import matplotlib.pyplot as plt
+
+    # Functional form for the empirical model:
+    # Irr_i(t) = A_i * (F107(t)**B_i) + C_i * (F107A(t)**D_i) + E_i * (F107A(t) - F107(t))**F_i
+    def irrFunc(F107input, A, B, C, D, E, F):
+        F107, F107A = F107input
+        return A*(F107**B) + C*(F107A**D) + E*(F107A-F107) + F
+
+    # Isolate the valid times for performing the fit:
+    f107times = f107Data[0]
+    f107 = f107Data[1]
+    f107A = f107Data[2]
+    validInds = np.where((f107times >= irrTimes[0]) & (f107times <= irrTimes[-1]))[0]
+    f107TimesSubset = f107times[validInds]
+    f107Subset = f107[validInds]
+    f107ASubset = f107A[validInds]
+
+    # Ensure that the time resolution is harmonized between the subset F10.7 data and the irradiance data, so that only
+    # the elements co-located in time will be considered for fitting:
+    f107TimesSubsetNearest = []
+    f107SubsetNearest = []
+    f107ASubsetNearest = []
+    for i in range(len(irrTimes)):
+        coLocatedInfo = find_nearest(f107TimesSubset, irrTimes[i])
+        f107TimesSubsetNearest.append(f107TimesSubset[coLocatedInfo[0]])
+        f107SubsetNearest.append(f107Subset[coLocatedInfo[0]])
+        f107ASubsetNearest.append(f107ASubset[coLocatedInfo[0]])
+    f107Predictors = np.array([np.asarray(f107SubsetNearest), np.asarray(f107ASubsetNearest)])
+
+    # Loop through each individual band and perform the fit, returning the obtained coefficients:
+    fitParams = []
+    for j in range(irrData.shape[1]):
+        if j >= 3:
+            nonNanLocs = ~np.isnan(irrData[:, j])
+            fitResult = curve_fit(irrFunc, f107Predictors[:, nonNanLocs], irrData[:, j][nonNanLocs])
+            fitPopt, fitPcov = fitResult
+            fig, axs = plt.subplots(1, 3, figsize=(24, 10))
+            # Irradiance vs. F10.7:
+            axs[0].scatter(f107Predictors[0], irrData[:, j])
+            axs[0].set_xlabel('F10.7 (sfu)')
+            axs[0].set_ylabel('Irradiance (W/m$^2$/nm)')
+            axs[0].set_title('Band '+str(j+1)+': Irradiance vs. F10.7')
+            # Irradiance vs. F10.7A:
+            axs[1].scatter(f107Predictors[1], irrData[:, j])
+            axs[1].set_xlabel('F10.7A (sfu)')
+            axs[1].set_ylabel('Irradiance (W/m$^2$/nm)')
+            axs[1].set_title('Band ' + str(j+1) + ': Irradiance vs. F10.7A')
+            # Fit results:
+            pred = irrFunc(f107Predictors, *fitPopt)
+            axs[2].plot(f107TimesSubset, irrData[:, j][1:], label='TIMED/SEE')
+            axs[2].plot(f107TimesSubset, pred[1:], label='NEUVAC')
+            axs[2].set_xlabel('Time')
+            axs[2].set_ylabel('Irradiance (W/m$^2$/nm)')
+            axs[2].set_title('Model Results')
+            axs[2].legend(loc='best')
+            # Ylims (always set to mean +/- 3 sigma):
+            meanIrr = np.nanmean(irrData[:, j])
+            if j+1 == 13 or j+1 == 14:
+                axs[0].set_ylim([0, 5*meanIrr])
+                axs[1].set_ylim([0, 5*meanIrr])
+                axs[2].set_ylim([-meanIrr, 5*meanIrr])
+            elif j+1 == 17:
+                axs[0].set_ylim([0, 2.2 * meanIrr])
+                axs[1].set_ylim([0, 2.2 * meanIrr])
+                axs[2].set_ylim([-meanIrr, 2.2 * meanIrr])
+            # Appending:
+            fitParams.append(fitResult)
+            # Saving the figure:
+            plt.savefig('Fitting/Band_'+str(j+1)+'_NEUVAC_fit.png', dpi=300)
+
+    return fitParams
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------

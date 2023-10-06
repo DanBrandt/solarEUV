@@ -63,7 +63,7 @@ def firstNonNan(listfloats):
 
 def find_nearest(array, value):
     """
-    Given an array, find the index and value of an item closest to a supplie value.
+    Given an array, find the index and value of an item closest to a supplied value.
     :param array: ndarray
         An array of values over which to search.
     :param value: float, int, str, datetime
