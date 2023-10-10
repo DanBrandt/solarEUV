@@ -2,7 +2,7 @@
 # sources include: EUVAC, HEUVAC, FISM1, FISM2, and TIMED/SEE.
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Top-level Imports
+# Top-level Imports:
 import numpy as np
 import os
 import matplotlib
@@ -13,7 +13,7 @@ from datetime import datetime
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Local Imports
+# Local Imports:
 from NEUVAC.src import neuvac
 from empiricalModels.models.EUVAC import euvac
 from empiricalModels.models.HEUVAC import heuvac
@@ -27,6 +27,7 @@ from tools import toolbox
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Directory Management
+neuvac_directory = '../NEUVAC/src/'
 figures_directory = 'Figures/'
 results_directory = 'Results/'
 fism1_spectra_folder = '../empiricalModels/irradiances/FISM1/'
@@ -37,50 +38,7 @@ preparedDataFolder = '../experiments/preparedData'
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Constants
-euvacTable = np.array([
-    [1, 50, 100, 1.200, 1.0017e-2],
-    [2, 100, 150, 0.450, 7.1250e-3],
-    [3, 150, 200, 4.800, 1.3375e-2],
-    [4, 200, 250, 3.100, 1.9450e-2],
-    [5, 256.32, 256.32, 0.460, 2.7750e-3],
-    [6, 284.15, 284.15, 0.210, 1.3768e-1],
-    [7, 250, 300, 1.679, 2.6467e-2],
-    [8, 303.31, 303.31, 0.800, 2.5000e-2],
-    [9, 303.78, 303.78, 6.900, 3.3333e-3],
-    [10, 300, 350, 0.965, 2.2450e-2],
-    [11, 368.07, 368.07, 0.650, 6.5917e-3],
-    [12, 350, 400, 0.314, 3.6542e-2],
-    [13, 400, 450, 0.383, 7.4083e-3],
-    [14, 465.22, 465.22, 0.290, 7.4917e-3],
-    [15, 450, 500, 0.285, 2.0225e-2],
-    [16, 500, 550, 0.452, 8.7583e-3],
-    [17, 554.37, 554.37, 0.720, 3.2667e-3],
-    [18, 584.33, 584.33, .270, 5.1583e-3],
-    [19, 550, 600, 0.357, 3.6583e-3],
-    [20, 609.76, 609.76, 0.530, 1.6175e-2],
-    [21, 629.73, 629.73, 1.590, 3.3250e-3],
-    [22, 600, 650, 0.342, 1.1800e-2],
-    [23, 650, 700, 0.230, 4.2667e-3],
-    [24, 703.36, 703.36, 0.360, 3.0417e-3],
-    [25, 700, 750, 0.141, 4.7500e-3],
-    [26, 765.15, 765.15, 0.170, 3.8500e-3],
-    [27, 770.41, 770.41, 0.260, 1.2808e-2],
-    [28, 789.36, 789.36, 0.702, 3.2750e-3],
-    [29, 750, 800, 0.758, 4.7667e-3],
-    [30, 800, 850, 1.625, 4.8167e-3],
-    [31, 850, 900, 3.537, 5.6750e-3],
-    [32, 900, 950, 3.000, 4.9833e-3],
-    [33, 977.02, 977.02, 4.400, 3.9417e-3],
-    [34, 950, 1000, 1.475, 4.4167e-3],
-    [35, 1025.72, 1025.72, 3.500, 5.1833e-3],
-    [36, 1031.91, 1031.91, 2.100, 5.2833e-3],
-    [37, 1000, 1050, 2.467, 4.3750e-3]
-    ])
-
-# Correction factors for NEUVAC:
-correctionDataTuples = [(3, 5.), (6, 2.), (9, 2.), (11, 2.), (12, 2.5), (15, 2.), (16, 1.5), (17, 1.5), (19, 1.5),
-                                (20, 2.), (22, 1.5), (30, 1.5), (34, 1.5), (39, 2.), (44, 1.5), (46, 2.), (48, 2.),
-                                (52, 2)]
+euvacTable = euvac.euvacTable
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -153,7 +111,7 @@ if __name__=="__main__":
 
     # FISM1 Results:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
-    # mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
+    mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
     # myFism1Files = os.listdir(fism1_spectra_folder)
     # myTimesFISM1, myIrradianceFISM1 = obtainFism1(myFism1Files, euv_data_59, saveLoc=fism1_spectra_folder)
     # # FISM1 data extends between 1990-01-01; 00:00 and 2018-04-10; 00:00.
@@ -181,9 +139,9 @@ if __name__=="__main__":
     # correctedNeuvacIrr = np.asarray(correctedNeuvacIrr).T
 
     # FISM2 Results:
-    # fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
-    # myIrrTimesFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59, saveLoc=fism2_spectra_folder)
-    # # FISM2 data extends between 1947-02-14; 00:00 and 2023-08-29; 00:00.
+    fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
+    myIrrTimesFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59, saveLoc=fism2_spectra_folder)
+    # FISM2 data extends between 1947-02-14; 00:00 and 2023-08-29; 00:00.
 
     # NRLSSI2 Results:
     # NRLFile = '../empiricalModels/irradiances/NRLSSI2/ssi_v02r01_daily_s18820101_e20221231_c20230123.nc'
@@ -200,8 +158,37 @@ if __name__=="__main__":
     # TIMED/SEE data extends between 2002-01-22;12:00 and 2023-08-27; 12:00.
     # Questionable wavelengths (with scale factor): 1025 (10), 975 (4), 775 (4), 625 (2.5), 575 (10), 375 (50), 325 (4), 284.15 (2.5), 275 (12)
 
-    # Perform a non-linear fit between F10.7, F10.7A and TIMED/SEE:
-    neuvacTable = neuvac.neuvacFit([times, F107, F107A], myIrrTimesSEE, rebinnedIrrDataFixed)
+    # Perform a non-linear fit between F10.7, F10.7A and TIMED/SEE (valid for 55 of the 59 bins; excludes the first 4):
+    neuvacTableSEE = neuvac.neuvacFit([times, F107, F107A], myIrrTimesSEE, rebinnedIrrDataFixed[:, 4:], wavelengths=mids[4:], label='TIMED/SEE')
+    # Perform a non-lienar fit between F10.7, F10.7A, and FISM2 (valid for the first 4 of the 59 bins):
+    neuvacTableFISM2 = neuvac.neuvacFit([times, F107, F107A], myIrrTimesFISM2, myIrrDataAllFISM2[:, :4], wavelengths=mids[:4], label='FISM2')
+
+    # Collect the coefficients into a table (so they can be assembled for use in a function):
+    neuvacTableSEEArr = np.asarray(neuvacTableSEE)
+    neuvacTableFISM2Arr = np.asarray(neuvacTableFISM2)
+    neuvacTable = np.concatenate((neuvacTableFISM2Arr, neuvacTableSEE), axis=0)
+    # Print the coefficients to a file:
+    with open(neuvac_directory+'neuvac_table.txt', 'w') as output:
+        # Write the header information:
+        output.write('This file contains coefficients for the current iteration of NEUVAC.\n'
+                     'This file was created on '+datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')+'\n'
+                     'File Authors: Brandt, Daniel A. and Ridley, Aaron J.\n'
+                     'This version of NEUVAC was created by fitting nonlinear models between F10.7 and centered\n'
+                     '81-day averaged F10.7 and: FISM2 (in the first 4 bands) and TIMED/SEE (in the remaining 55\n'
+                     'bands.\n'
+                     'The file is formatted as follows:\n'
+                     ' - First Column: Lower limit of the given wavelength bin in Angstroms.\n'
+                     ' - Second Column: Upper limit of the given wavelength bin in Angstroms.\n'
+                     ' - Third through Eighth colummns: Coefficients for the model.\n'
+                     'The functional form of the model is given by:\n'
+                     'Irr_i(t) = A_i * (F107(t) ** B_i) + C_i * (F107A(t) ** D_i) + E_i * (F107A(t) - F107(t)) + F_i\n'
+                     'where the irradiance in bin i (Irr_i) is a function of time t, and A_i through F_i are \n'
+                     'coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 81-day\n'
+                     'averaged F10.7 centered on the current day, respectively.\n'
+                     '-----------------------------------------------------------------------------------------------\n'
+                     'WAVES WAVEL A_i B_i C_i D_i E_i F_i\n')
+        for i in range(neuvacTable.shape[0]):
+            output.writelines(str(euv_data_59['short'][i])+' '+str(euv_data_59['long'][i])+' '+toolbox.stringList(neuvacTable[i, :])+'\n')
 
     # ------------------------------------------------------------------------------------------------------------------
     # # Plot the spectra for a single day:
@@ -472,5 +459,5 @@ if __name__=="__main__":
     #     plt.show()
     #     plt.savefig(figures_directory+'Irradiance_Band_'+str(i+1)+'.png')
 
-    print('Data preparation complete.')
+    print('Data preparation and model fitting complete.')
 #-----------------------------------------------------------------------------------------------------------------------

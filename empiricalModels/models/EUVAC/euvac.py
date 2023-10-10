@@ -15,22 +15,8 @@ c = 299792458 # Speed of light in m s^-1
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Functions:
-def refSpec(i):
-    """
-    Return the standard solar flux in 37 bands from the F74113 Spectrum (pp. 584-585 in Schunk and Nagy).
-    Source 2: Richard, P. G., Fennelly, J. A., and Torr, D. G., EUVAC: A solar EUV flux model for aeronomic
-    calculations, Journal of Geophysical Research, 99, A5, 8981-8992, 1994.
-    Source 3: Heroux, L. and Hinteregger, H. E., Aeronomical Reference Spectrum for Solar UV Below 2000 A, Journal of
-    Geophysical Research, 83, A11, 1978.
-    :param: i: int
-        The index for the wavelength. Must be between 0 and 37.
-    :return: F74113_i: float
-        The reference solar flux in units of photons m^-2 s^-1.
-    :return: A_i: float
-        The scaling factor for the wavelength interval.
-    """
-    euvacTable = np.array([
+# Global variables:
+euvacTable = np.array([
     [1, 50, 100, 1.200, 1.0017e-2],
     [2, 100, 150, 0.450, 7.1250e-3],
     [3, 150, 200, 4.800, 1.3375e-2],
@@ -69,6 +55,24 @@ def refSpec(i):
     [36, 1031.91, 1031.91, 2.100, 5.2833e-3],
     [37, 1000, 1050, 2.467, 4.3750e-3]
     ])
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Functions:
+def refSpec(i):
+    """
+    Return the standard solar flux in 37 bands from the F74113 Spectrum (pp. 584-585 in Schunk and Nagy).
+    Source 2: Richard, P. G., Fennelly, J. A., and Torr, D. G., EUVAC: A solar EUV flux model for aeronomic
+    calculations, Journal of Geophysical Research, 99, A5, 8981-8992, 1994.
+    Source 3: Heroux, L. and Hinteregger, H. E., Aeronomical Reference Spectrum for Solar UV Below 2000 A, Journal of
+    Geophysical Research, 83, A11, 1978.
+    :param: i: int
+        The index for the wavelength. Must be between 0 and 37.
+    :return: F74113_i: float
+        The reference solar flux in units of photons m^-2 s^-1.
+    :return: A_i: float
+        The scaling factor for the wavelength interval.
+    """
     lookUpIdx = np.where(euvacTable == i)[0]
     F74113_i = euvacTable[lookUpIdx, 3][0]*(1e13) # Multiply by 1e13 to obtain photons m^-2 s^-1.
     A_i = euvacTable[lookUpIdx, 4][0]

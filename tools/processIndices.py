@@ -17,7 +17,7 @@ from toolbox import uniformSample, imputeData, rollingAverage, rollingStd, saveP
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Functions
+# Functions:
 def readF107(filename):
     """
     Load in F10.7 data from the files obtained from the FTP server provided by the Government of Canada:

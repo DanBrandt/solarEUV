@@ -7,7 +7,9 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level imports:
 import numpy as np
-from scipy.optimize import curve_fit
+from scipy.optimize import curve_fit, NonlinearConstraint, minimize
+import matplotlib.pyplot as plt
+from datetime import timedelta
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -17,7 +19,7 @@ from tools.toolbox import find_nearest
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Waves Table
+# Waves Table (coefficients for the old NEUVAC Model):
 # Format: 0-Min, 1-Max, 2-S_1i, 3-S_Ai, 4-S_Di, 5-I_i, 6-Pi, 7-Ai
 waveTable = np.array([
     [1700.00, 1750.00, 1.31491e-06, 6.71054e-06, 5.78034e-07, 0.00355128, 1.05517, 0.901612],
@@ -80,20 +82,23 @@ waveTable = np.array([
     [2.00, 4.00, 3.97985e-09, 4.12085e-08, 4.71914e-09, -1.86099e-06, 1.15214, 0.916686],
     [1.00, 2.00, 3.52498e-09, 1.57342e-08, 4.03741e-09, -8.84488e-07, 0.951714, 0.943490]
     ])
+
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions:
-def neuvacEUV(f107, f107a, bandLim=False):
+def neuvacEUV(f107, f107a, bandLim=False, table=True):
     """
     Use a parametric model to compute solar flux in the 59 conventional wavelength bands used by Aether/GITM.
-    This is the ORIGINAL NEUVAC model constructed by Aaron Ridley.
     :param f107: ndarray
         F10.7 values.
     :param f107a: ndarray
         81-day center-averaged F10.7 values; must be the same length as f107.
     :param bandLim: bool
         If True, limits the outputted bands to just those 37 used by EUVAC.
+    :param table: bool
+        If True, uses the coefficients from the MOST RECENTLY parameterized version of the model. Otherwise, uses the
+        coefficients from the table in this module. Default is True.
     :param calibrate: bool
         If True, applies empirically-determined correction factors to specific wavelength bands.
     :return euvFlux: ndarray
@@ -110,11 +115,16 @@ def neuvacEUV(f107, f107a, bandLim=False):
     euvFlux = np.zeros_like(solarFlux)
     euvIrradiance = np.zeros_like(euvFlux)
     # Gather the relevant data:
-    RidleySlopes = waveTable[:, 2:5]
-    RidleyPowers = waveTable[:, 6:]
-    RidleyIntercepts = waveTable[:, 5]
-    WAVES = waveTable[:, 0]
-    WAVEL = waveTable[:, 1]
+    if table==False:
+        # TODO: Modify this code to FLIP waveTable upside down so that the 'reversed' ocmmand in line 132 is not needed.
+        RidleySlopes = waveTable[:, 2:5]
+        RidleyPowers = waveTable[:, 6:]
+        RidleyIntercepts = waveTable[:, 5]
+        WAVES = waveTable[:, 0]
+        WAVEL = waveTable[:, 1]
+    else:
+        # TODO: Load in the coefficients from the table.
+        print()
     # Loop across the F10.7 (and F10.7A) values:
     for i in range(len(f107)):
         # Loop across the wavelengths (59 conventional wavelengths):
@@ -130,14 +140,10 @@ def neuvacEUV(f107, f107a, bandLim=False):
             if WAVEL[j] != WAVES[j]:
                 euvIrradiance[i, k] = 0.1 * dWave * spectralIrradiance(euvFlux[i, k], wvavg, dWave)
             else:
-                # if WAVEL[j] < 1000:
-                #     factor = 500
-                # else:
-                #     factor = 1000
-                euvIrradiance[i, k] = wvavg * spectralIrradiance(euvFlux[i, k], wvavg)  # waveTable[j, 0]
+                euvIrradiance[i, k] = wvavg * spectralIrradiance(euvFlux[i, k], wvavg)
             k += 1
     if bandLim: # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
-        return euvFlux[:, 7:44] #15:52]
+        return euvFlux[:, 7:44]
     return euvFlux, np.squeeze(euvIrradiance)
 
 def correlatedNEUVAC(meanSpectra, corrModels, f107):
@@ -175,7 +181,7 @@ def correlatedNEUVAC(meanSpectra, corrModels, f107):
     euvFluxCorr = np.squeeze(np.asarray([lowerResults, upperResults]))
     return euvFluxCorr
 
-def neuvacFit(f107Data, irrTimes, irrData):
+def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=False):
     """
     Calculate entirely new empirical parametric fits between F10.7 data and solar EUV irradiance data, irrespective
     of the number of wavelength bands the irradiance data is split into.
@@ -187,16 +193,31 @@ def neuvacFit(f107Data, irrTimes, irrData):
         An arraylike of datetimes for each solar EUV spectra in irrData.
     :param irrData: ndarray
         An array of solar EUV irradiance measurements or estimates (from FISM, TIMED/SEE, etc.), arranged such that
+        there is a single observation per row. A single observaton contains the entire EUV spectrum for a single day.
+    :param wavelengths: arraylike
+        An array of wavelengths to which the irradiance data corresponds.
+    :param label: None
+        An optional argument specifying the label for the data the model is being constructed for. Default is None.
+    :param constraint: bool
+        An optional argument that if True, constrains the fitted function to yield nonnegative outputs.
     :param neuvacTable: ndarray
         An array of coefficients with which to compute the irradiance in each bin.
     """
-    import matplotlib.pyplot as plt
-
     # Functional form for the empirical model:
-    # Irr_i(t) = A_i * (F107(t)**B_i) + C_i * (F107A(t)**D_i) + E_i * (F107A(t) - F107(t))**F_i
+    # Irr_i(t) = A_i * (F107(t)**B_i) + C_i * (F107A(t)**D_i) + E_i * (F107A(t) - F107(t)) + F_i
     def irrFunc(F107input, A, B, C, D, E, F):
         F107, F107A = F107input
-        return A*(F107**B) + C*(F107A**D) + E*(F107A-F107) + F
+        return A * (F107 ** B) + C * (F107A ** D) + E * (F107A - F107) + F
+
+    # ENFORCING MODEL RESULTS TO BE NONZERO:
+    # Objective (cost) function:
+    def objFun(params, variables):
+        x, y = variables
+        y_pred = irrFunc(variables, *params)
+        return np.sum((y_pred - y)**2)
+    # Constraint (model output must be nonnegative):
+    def constraint(params, *variables):
+        return irrFunc(variables, *params)
 
     # Isolate the valid times for performing the fit:
     f107times = f107Data[0]
@@ -207,13 +228,18 @@ def neuvacFit(f107Data, irrTimes, irrData):
     f107Subset = f107[validInds]
     f107ASubset = f107A[validInds]
 
+    # Ensure we plot the correct subset by also subsetting the irradiances to the same times as above:
+    validIrrInds = np.where((irrTimes >= f107TimesSubset[0]) & (irrTimes <= (f107TimesSubset[-1] + timedelta(hours=12))))[0]
+    irrTimesSubset = irrTimes[validIrrInds]
+    irrDataSubset = irrData[validIrrInds, :]
+
     # Ensure that the time resolution is harmonized between the subset F10.7 data and the irradiance data, so that only
     # the elements co-located in time will be considered for fitting:
     f107TimesSubsetNearest = []
     f107SubsetNearest = []
     f107ASubsetNearest = []
-    for i in range(len(irrTimes)):
-        coLocatedInfo = find_nearest(f107TimesSubset, irrTimes[i])
+    for i in range(len(irrTimesSubset)):
+        coLocatedInfo = find_nearest(f107TimesSubset, irrTimesSubset[i])
         f107TimesSubsetNearest.append(f107TimesSubset[coLocatedInfo[0]])
         f107SubsetNearest.append(f107Subset[coLocatedInfo[0]])
         f107ASubsetNearest.append(f107ASubset[coLocatedInfo[0]])
@@ -221,45 +247,54 @@ def neuvacFit(f107Data, irrTimes, irrData):
 
     # Loop through each individual band and perform the fit, returning the obtained coefficients:
     fitParams = []
-    for j in range(irrData.shape[1]):
-        if j >= 3:
-            nonNanLocs = ~np.isnan(irrData[:, j])
-            fitResult = curve_fit(irrFunc, f107Predictors[:, nonNanLocs], irrData[:, j][nonNanLocs])
-            fitPopt, fitPcov = fitResult
-            fig, axs = plt.subplots(1, 3, figsize=(24, 10))
-            # Irradiance vs. F10.7:
-            axs[0].scatter(f107Predictors[0], irrData[:, j])
-            axs[0].set_xlabel('F10.7 (sfu)')
-            axs[0].set_ylabel('Irradiance (W/m$^2$/nm)')
-            axs[0].set_title('Band '+str(j+1)+': Irradiance vs. F10.7')
-            # Irradiance vs. F10.7A:
-            axs[1].scatter(f107Predictors[1], irrData[:, j])
-            axs[1].set_xlabel('F10.7A (sfu)')
-            axs[1].set_ylabel('Irradiance (W/m$^2$/nm)')
-            axs[1].set_title('Band ' + str(j+1) + ': Irradiance vs. F10.7A')
-            # Fit results:
-            pred = irrFunc(f107Predictors, *fitPopt)
-            axs[2].plot(f107TimesSubset, irrData[:, j][1:], label='TIMED/SEE')
-            axs[2].plot(f107TimesSubset, pred[1:], label='NEUVAC')
-            axs[2].set_xlabel('Time')
-            axs[2].set_ylabel('Irradiance (W/m$^2$/nm)')
-            axs[2].set_title('Model Results')
-            axs[2].legend(loc='best')
-            # Ylims (always set to mean +/- 3 sigma):
-            meanIrr = np.nanmean(irrData[:, j])
-            if j+1 == 13 or j+1 == 14:
-                axs[0].set_ylim([0, 5*meanIrr])
-                axs[1].set_ylim([0, 5*meanIrr])
-                axs[2].set_ylim([-meanIrr, 5*meanIrr])
-            elif j+1 == 17:
-                axs[0].set_ylim([0, 2.2 * meanIrr])
-                axs[1].set_ylim([0, 2.2 * meanIrr])
-                axs[2].set_ylim([-meanIrr, 2.2 * meanIrr])
-            # Appending:
-            fitParams.append(fitResult)
-            # Saving the figure:
-            plt.savefig('Fitting/Band_'+str(j+1)+'_NEUVAC_fit.png', dpi=300)
-
+    for j in range(irrDataSubset.shape[1]):
+        nonNanLocs = ~np.isnan(irrDataSubset[:, j])
+        fitResult0 = curve_fit(irrFunc, f107Predictors[:, nonNanLocs], irrDataSubset[:, j][nonNanLocs])#, bounds=bnds)
+        fitPopt , fitPcov = fitResult0
+        if constrain == True:
+            initial_guess = fitResult0[0]
+            cons = {'type': 'ineq', 'fun': constraint, 'args': f107Predictors[:, nonNanLocs]}
+            fitResult = minimize(objFun, initial_guess, method='COBYLA', args=[f107Predictors[:, nonNanLocs], irrDataSubset[:, j][nonNanLocs]], constraints=cons) # method='COBYLA'
+            fitPopt = fitResult.x
+        # Plotting
+        fig, axs = plt.subplots(1, 3, figsize=(24, 8))
+        # Irradiance vs. F10.7:
+        axs[0].scatter(f107Predictors[0], irrDataSubset[:, j])
+        axs[0].set_xlabel('F10.7 (sfu)')
+        axs[0].set_ylabel('Irradiance (W/m$^2$/nm)')
+        axs[0].set_title('Irradiance vs. F10.7 ('+str(wavelengths[j])+' Angstroms)')
+        # Irradiance vs. F10.7A:
+        axs[1].scatter(f107Predictors[1], irrDataSubset[:, j])
+        axs[1].set_xlabel('F10.7A (sfu)')
+        # axs[1].set_ylabel('Irradiance (W/m$^2$/nm)')
+        axs[1].set_title('Irradiance vs. F10.7A ('+str(wavelengths[j])+' Angstroms)')
+        # Fit results:
+        pred = irrFunc(f107Predictors, *fitPopt)
+        # Ensure positive-definiteness:
+        pred[pred < 0] = 0
+        axs[2].plot(f107TimesSubset, irrDataSubset[:, j], label=label)
+        axs[2].plot(f107TimesSubset, pred, label='NEUVAC') #/1e8, 1e5,
+        axs[2].set_xlabel('Time')
+        # axs[2].set_ylabel('Irradiance (W/m$^2$/nm)')
+        axs[2].set_title('Model Results')
+        axs[2].legend(loc='best')
+        # Ylims (always set to mean +/- 3 sigma):
+        meanIrr = np.nanmean(irrDataSubset[:, j])
+        if j+1 == 9 or j+1 == 10:
+            axs[0].set_ylim([0, 5*meanIrr])
+            axs[1].set_ylim([0, 5*meanIrr])
+            axs[2].set_ylim([-meanIrr, 5*meanIrr])
+        elif j+1 == 13:
+            axs[0].set_ylim([0, 2.2 * meanIrr])
+            axs[1].set_ylim([0, 2.2 * meanIrr])
+            axs[2].set_ylim([-meanIrr, 2.2 * meanIrr])
+        # Appending:
+        fitParams.append(fitResult0[0])
+        # Saving the figure:
+        if label is not None:
+            plt.savefig('Fitting/'+'NEUVAC_' + label.replace('/','-') + '_fit_'+str(wavelengths[j]).replace('.','_')+ '_A.png', dpi=300)
+        else:
+            plt.savefig('Fitting/'+'NEUVAC_fit_'+str(wavelengths[j]).replace(',','_')+ '_A.png', dpi=300)
     return fitParams
 #-----------------------------------------------------------------------------------------------------------------------
 

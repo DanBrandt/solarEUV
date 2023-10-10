@@ -9,18 +9,8 @@ from random import randrange
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Functions:
-def refSpecHEUVAC(i):
-    """
-    Return the standard solar flux in 37 bands using HEUVAC.
-    :param: i: int
-        The index for the wavelength. Must be between 0 and 37.
-    :return: flux68: float
-        The HEUVAC reference solar flux in units of photons m^-2 s^-1.
-    :return: SEEFAC: float
-        The scaling factor for the wavelength interval.
-    """
-    heuvacTable = np.array([
+# Global Variable:
+heuvacTable = np.array([
         [1, 50, 100, 3.106, 2.58],
         [2, 100, 150, 2.1, 1.53],
         [3, 150, 200, 3.5, 1.5],
@@ -59,6 +49,20 @@ def refSpecHEUVAC(i):
         [36, 1031.91, 1031.91, 0.28, 1.5],
         [37, 1000, 1050, 0.4721, 1.82]
     ])
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Functions:
+def refSpecHEUVAC(i):
+    """
+    Return the standard solar flux in 37 bands using HEUVAC.
+    :param: i: int
+        The index for the wavelength. Must be between 0 and 37.
+    :return: flux68: float
+        The HEUVAC reference solar flux in units of photons m^-2 s^-1.
+    :return: SEEFAC: float
+        The scaling factor for the wavelength interval.
+    """
     lookUpIdx = np.where(heuvacTable == i)[0]
     flux68 = heuvacTable[lookUpIdx, 3][0]
     SEEFAC = heuvacTable[:, 4][lookUpIdx][0] # heuvacTable[lookUpIdx, 4][0]

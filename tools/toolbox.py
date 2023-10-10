@@ -629,3 +629,15 @@ def round_mult(num, divisor, direction='down'):
         return num - (num%divisor)
     else:
         return divisor*(round(num/divisor))
+
+def stringList(myList):
+    """
+    Convert a list of numbers into a single string.
+    :param myList: list
+        A list of numbers.
+    :return myStr: str
+        The string.
+    """
+    strList = [str(element) for element in myList]
+    myStr = " ".join(strList)
+    return myStr
