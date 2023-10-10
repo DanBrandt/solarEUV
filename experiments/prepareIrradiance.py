@@ -28,6 +28,7 @@ from tools import toolbox
 #-----------------------------------------------------------------------------------------------------------------------
 # Directory Management
 neuvac_directory = '../NEUVAC/src/'
+neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
 figures_directory = 'Figures/'
 results_directory = 'Results/'
 fism1_spectra_folder = '../empiricalModels/irradiances/FISM1/'
@@ -67,7 +68,7 @@ if __name__=="__main__":
     # NOTE: NEUVAC, EUVAC, and HEUVAC return spectral fluxes. They'll need to be converted to spectral irradiance.
 
     # NEUVAC Results:
-    # neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A)
+    # neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
     # neuvacIrrCal = neuvacIrr.copy()
     #
     # # NEUVAC calibration:
@@ -156,7 +157,6 @@ if __name__=="__main__":
     rebinnedIrrDataFixed = rebinnedIrrData.copy()
     rebinnedIrrDataFixed[rebinnedIrrDataFixed == 0] = np.nan
     # TIMED/SEE data extends between 2002-01-22;12:00 and 2023-08-27; 12:00.
-    # Questionable wavelengths (with scale factor): 1025 (10), 975 (4), 775 (4), 625 (2.5), 575 (10), 375 (50), 325 (4), 284.15 (2.5), 275 (12)
 
     # Perform a non-linear fit between F10.7, F10.7A and TIMED/SEE (valid for 55 of the 59 bins; excludes the first 4):
     neuvacTableSEE = neuvac.neuvacFit([times, F107, F107A], myIrrTimesSEE, rebinnedIrrDataFixed[:, 4:], wavelengths=mids[4:], label='TIMED/SEE')
@@ -189,6 +189,7 @@ if __name__=="__main__":
                      'WAVES WAVEL A_i B_i C_i D_i E_i F_i\n')
         for i in range(neuvacTable.shape[0]):
             output.writelines(str(euv_data_59['short'][i])+' '+str(euv_data_59['long'][i])+' '+toolbox.stringList(neuvacTable[i, :])+'\n')
+
 
     # ------------------------------------------------------------------------------------------------------------------
     # # Plot the spectra for a single day:

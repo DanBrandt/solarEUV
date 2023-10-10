@@ -10,3 +10,13 @@
 # Local Imports:
 
 #-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Execution:
+#     neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
+#     plt.figure()
+#     plt.plot(myIrrTimesFISM2, myIrrDataAllFISM2[:, 37], label='FISM2')
+#     plt.plot(times, neuvacIrr[:, 37], label='NEUVAC')
+#     plt.plot(myIrrTimesSEE, rebinnedIrrDataFixed[:, 37], label='TIMED/SEE')
+#     plt.legend(loc='best')
+#-----------------------------------------------------------------------------------------------------------------------
