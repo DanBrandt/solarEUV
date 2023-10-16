@@ -9,6 +9,11 @@ from random import randrange
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# Local Imports:
+from tools.spectralAnalysis import spectralIrradiance
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
 # Constants
 h = 6.62607015e-34 # Planck's constant in SI units of J s
 c = 299792458 # Speed of light in m s^-1
@@ -88,13 +93,21 @@ def euvac(F107, F107A):
         Values of the 81-day averaged solar flux, centered on the present day.
     :return: euvacFlux: ndarray
         Values of the solar radiant flux in 37 distinct wavelength bands.
+    :return euvacIrr: ndarray
+        Values of the solar spectral irradiance in 37 distinct wavelength bands.
     """
     P = (F107A + F107)/2.0
     if type(F107) == np.ndarray:
         euvacFlux = np.zeros((len(F107), 37)) # Columns represent each wavelength band 37 (59).
+        euvacIrr = np.zeros((len(F107), 37))
     else:
         euvacFlux = np.zeros((1, 37))
+        euvacIrr = np.zeros((1, 37))
     for i in range(37):
+        wav = 0.5*(euvacTable[i, 2] + euvacTable[i, 1])
+        dWav = euvacTable[i, 2] - euvacTable[i, 1]
+        if dWav == 0:
+            dWav = None
         F74113_i, A_i = refSpec(i+1)
         fluxFactor = (1. + A_i*(P-80))
         # if fluxFactor < 0.8:
@@ -107,29 +120,30 @@ def euvac(F107, F107A):
             if photonFlux < 0:
                 photonFlux = 0
         euvacFlux[:, i] = photonFlux
-    return euvacFlux
+        euvacIrr[:, i] = spectralIrradiance(photonFlux, wavelength=wav, dWavelength=dWav)
+    return euvacFlux, euvacIrr
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Execution:
 if __name__ == '__main__':
-    # F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
+    F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
     # F107A = averageF107(F107)
-    # myFlux = euvac(F107, F107A)
+    myFlux, myIrr = euvac(F107, F107)
     # myIrr = spectralIrradiance(myFlux, 400, 5)
     # flux = euvac(200, 200)
-    F107 = np.array([randrange(200) for element in range(6000)])
+    # F107 = np.array([randrange(200) for element in range(6000)])
 
     # EUVAC wavelengths (ranges):
-    euvacShort = np.array([50., 100., 150., 200., 250., 300., 350., 400., 450., 500., 550., 600., 650., 700., 750.,
-                           800., 850., 900., 950., 1000.])
-    euvacLong = np.array([ 100.,  150.,  200.,  250.,  300.,  350.,  400.,  450.,  500., 550.,  600.,  650.,  700.,
-                           750.,  800.,  850.,  900.,  950., 1000., 1050.])
-    middleWavelengths = 0.5*(euvacLong + euvacShort)
-    differences = euvacLong - euvacShort
+    # euvacShort = np.array([50., 100., 150., 200., 250., 300., 350., 400., 450., 500., 550., 600., 650., 700., 750.,
+    #                        800., 850., 900., 950., 1000.])
+    # euvacLong = np.array([ 100.,  150.,  200.,  250.,  300.,  350.,  400.,  450.,  500., 550.,  600.,  650.,  700.,
+    #                        750.,  800.,  850.,  900.,  950., 1000., 1050.])
+    # middleWavelengths = 0.5*(euvacLong + euvacShort)
+    # differences = euvacLong - euvacShort
 
     # Sanity check between fluxes/irradiances from EUVAC and those from Ridley's method:
-    validInds = np.array([0, 1, 2, 3, 6, 9, 11, 12, 14, 15, 18, 21, 22, 24, 28, 29, 30, 31, 33, 36])
+    # validInds = np.array([0, 1, 2, 3, 6, 9, 11, 12, 14, 15, 18, 21, 22, 24, 28, 29, 30, 31, 33, 36])
     # import matplotlib.pyplot as plt
     # import matplotlib
     # matplotlib.use('Qt5Agg')  # Install Pyqt5

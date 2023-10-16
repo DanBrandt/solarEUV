@@ -2,18 +2,23 @@
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports
+import os
 from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import sys, csaps
 import matplotlib
 matplotlib.use('Qt5Agg')
-# import matplotlib.pyplot as plt
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local imports:
-from toolbox import uniformSample, imputeData, rollingAverage, rollingStd, savePickle
+from tools.toolbox import uniformSample, imputeData, rollingAverage, rollingStd, savePickle
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Folder for downloading F10.7 data:
+F107Folder = '../solarIndices/F107/OMNIWeb/'
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -67,6 +72,58 @@ def readF107(filename):
             i += 1
 
     return np.asarray(times), np.asarray(f107)
+
+def getF107(dateStart, dateEnd):
+    """
+    Given two dates, automatically download F10.7 data from NASA OMNIWeb.
+    :param dateStart: str
+        The starting date, in YYYY-MM-DD format.
+    :param dateEnd: str
+        The ending date, in YYYY-MM-DD format.
+    :return dataFile: str
+        The downloaded OMNI data file.
+    :return times: ndarray
+        An array of datetimes for the F10.7 values.
+    :return f107: ndarray
+        The F10.7 values for the time desired.
+    :return f107A: str
+        The 81-day averaged F10.7 values (centered on the current day) for the time desired.
+    """
+    dateStartStr = dateStart.replace('-','')
+    dateEndStr = dateEnd.replace('-','')
+    fileStr = F107Folder+'f107_'+dateStartStr+'_'+dateEndStr+'.txt'
+    if os.path.isfile(fileStr) == False:
+        # Set up the command string:
+        cmd = 'wget --post-data "activity=retrieve&res=hour&spacecraft=omni2&start_date='+dateStartStr+'&end_date='+\
+              dateEndStr+'&vars=50&scale=Linear&ymin=&ymax=&view=0&charsize=&xstyle=0&ystyle=0&symbol=0&symsize=&' \
+              'linestyle=solid&table=0&imagex=640&imagey=480&color=&back=" ' \
+              'https://omniweb.gsfc.nasa.gov/cgi/nx1.cgi -O '+fileStr
+        # Execute the command:
+        os.system(cmd)
+    dataFile = fileStr
+
+    # Obtain the data:
+    times = []
+    f107 = []
+    i = 0
+    with open(fileStr, 'r') as f107File:
+        f107Data = f107File.readlines()
+        for line in f107Data:
+            if i >= 8 and i < len(f107Data) - 15:
+                lineData = line.split()
+                times.append(datetime(int(lineData[0]), 1, 1) + timedelta(days=int(lineData[1]) - 1) + timedelta(
+                hours=int(lineData[2])))
+                f107.append(float(lineData[-1]))
+            i += 1
+    # Convert to arrays:
+    times = np.asarray(times)
+    f107 = np.asarray(f107)
+    # Clean the data:
+    cleanedF107 = cleanF107(times, f107, bad_value=999.9)
+    filteredF107 = F107filter(times, cleanedF107)
+    f107A = rollingAverage(filteredF107, window_length=81)
+    # Return the data:
+    return times, filteredF107, f107A
 
 def readOMNI(dataFile, headerFile):
     """
@@ -131,35 +188,39 @@ def cleanF107(index_times, index_values, bad_value=999.9):
     :return clean_values: arraylike
         The gap-filled/imputed data.
     """
-    clean_values = index_values.copy()
-    good_data_inds = np.logical_not(index_values >= bad_value)
-    bad_data_inds = np.logical_not(good_data_inds)
+    # Check for bad values:
+    badVals = np.where(index_values >= bad_value)[0]
+    if len(badVals) >= 1:
+        clean_values = index_values.copy()
+        good_data_inds = np.logical_not(index_values >= bad_value)
+        bad_data_inds = np.logical_not(good_data_inds)
 
-    full_times_seconds = np.asarray([(x - index_times[0]).total_seconds() for x in index_times])
+        full_times_seconds = np.asarray([(x - index_times[0]).total_seconds() for x in index_times])
 
-    good_data = clean_values[good_data_inds]
-    good_times = full_times_seconds[good_data_inds]
-    bad_times = full_times_seconds[bad_data_inds]
+        good_data = clean_values[good_data_inds]
+        good_times = full_times_seconds[good_data_inds]
+        bad_times = full_times_seconds[bad_data_inds]
 
-    yi = csaps.csaps(good_times, good_data, bad_times, smooth=0)
+        yi = csaps.csaps(good_times, good_data, bad_times, smooth=0)
 
-    subsetData = np.zeros_like(clean_values)
-    subsetData[good_data_inds] = clean_values[good_data_inds]
-    subsetData[bad_data_inds] = yi
+        subsetData = np.zeros_like(clean_values)
+        subsetData[good_data_inds] = clean_values[good_data_inds]
+        subsetData[bad_data_inds] = yi
 
-    subsetInds = np.full(clean_values.shape, True)  # No subsetting since bad values were filled in
+        subsetInds = np.full(clean_values.shape, True)  # No subsetting since bad values were filled in
 
-    # Since subsetting took place, change the actual values in the original data:
-    clean_values[subsetInds] = subsetData
+        # Since subsetting took place, change the actual values in the original data:
+        clean_values[subsetInds] = subsetData
 
-    # Plot the results for a sanity check:
-    # import matplotlib.pyplot as plt
-    # plt.figure()
-    # plt.plot(index_times, index_values, label='Original')
-    # plt.plot(index_times[subsetInds], clean_values[subsetInds], label='New')
-    # plt.legend(loc='best')
-
-    return clean_values
+        # Plot the results for a sanity check:
+        # import matplotlib.pyplot as plt
+        # plt.figure()
+        # plt.plot(index_times, index_values, label='Original')
+        # plt.plot(index_times[subsetInds], clean_values[subsetInds], label='New')
+        # plt.legend(loc='best')
+        return clean_values
+    else:
+        return index_values
 
 def F107filter(index_times, index_values, window_length=81, n=2):
     """

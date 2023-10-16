@@ -15,6 +15,9 @@ matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from scipy.stats import pearsonr
 from sklearn.metrics import mean_squared_error
+from tqdm import tqdm
+import scipy.integrate as integ
+from scipy import interpolate
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions
 def savePickle(data, pickleFilename):
@@ -641,3 +644,168 @@ def stringList(myList):
     strList = [str(element) for element in myList]
     myStr = " ".join(strList)
     return myStr
+
+def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True):
+    """
+    Rebin 2D [irradiance/flux] data, where each row is a complete spectrum, and each column is a specific wavelength
+    bin. Do the rebinning according to a desired resolution, and restrict the returned information to wavelength
+    boundaries set by the user.
+    :param wavelengths: arraylike
+        A list of wavelengths at which each irradiance value is taken.
+    :param data: ndarray
+        A 2D array of spectrum data (irradiances or fluxes).
+    :param resolution: float or dict
+        The desired spectral resolution of the rebinned data. Units must be in nanometers. If argument is a dict, the
+        key 'short' should contain wavelength boundaries for the beginning of bins, and the key 'long' should contain
+        wavelength boundaries for the ending of bins. These boundaries should be in Angstroms.
+    :param limits: list
+        A list of two elements, where the first is a lower limit for wavelengths and the second is an upper limit for
+        wavelengths, both in units of nanometers.
+    :param factor: int
+        A factor by which to upsample the data before performing rebinning. Tends to make the binning much more
+        accurate, due to the use of integrals. Default is None.
+    :param zero: bool
+        Controls whether singular lines are set to a value of zero after they are extracted. Default is True.
+    :return newWaves: ndarray
+        The centers of the wavelength bins corresponding to the rebinned data.
+    :return newData: ndarray
+        The rebinned data as a 2D array, arranged like the input data but at the new wavelength resolution.
+    """
+    # Get the native wavelength resolution of the input data:
+    nativeResolution = np.concatenate((np.diff(wavelengths), np.array([np.diff(wavelengths)[-1]])), axis=0)
+    nativeWavelengths = wavelengths.copy()
+
+    # Upsample the wavelengths and irradiance data so that integrals are more accurate:
+    if factor is not None:
+        if len(data.shape) < 2:
+            f = interpolate.interp1d(wavelengths, data, kind='linear')
+            wavelengths = np.linspace(wavelengths[0], wavelengths[-1], factor * len(wavelengths))
+            data = f(wavelengths)
+        else:
+            # Replace all NaNs with zeros:
+            data[np.isnan(data)] = 0
+            obs = np.linspace(0, data.shape[0], data.shape[0])
+            f = interpolate.interp2d(wavelengths, obs, data, kind='linear')
+            wavelengths = np.linspace(wavelengths[0], wavelengths[-1], factor*len(wavelengths))
+            data = f(wavelengths, obs)
+
+    # Loop through each row the new data array, and fill it in with the rebinned data:
+    if type(resolution) is not dict:
+        # TODO: The code for this if cell is VERY SLOW when processing large arrays. It needs to be sped up.
+        # CONDITION FOR A SINGLE WAVELENGTH RESOLUTION.
+        # Compute the wavelength centers for the new bins:
+        if limits is not None:
+            newWaves = np.arange(limits[0], limits[-1] + resolution, resolution)
+        else:
+            step = np.nanmean(np.diff(wavelengths))
+            newWaves = np.arange(wavelengths[0], wavelengths[-1] + step, step)
+        # Instantiate the new data array:
+        if len(data.shape) < 2:
+            newData = np.zeros((1, newWaves.shape[0]))
+        else:
+            newData = np.zeros((data.shape[0], newWaves.shape[0]))
+        # Loop over each spectrum (each individual observation):
+        for i in tqdm(range(newData.shape[0])):
+            # Loop through the wavelength intervals:
+            currentSpectrum = np.zeros_like(newWaves)
+            for j in range(newWaves.shape[0]-1):
+                # Get the indices of elements in each wavelength bin - ASSUME that the original data are associated with
+                # bin centers - apply an offset equal to the respective interval of the bin:
+                binInds = np.where((wavelengths > (newWaves[j] - resolution)) & (wavelengths < (newWaves[j] + resolution)))[0]
+                # Gather the elements in the bin and multiply them by the respective native bin width:
+                try:
+                    binElements = data[i, binInds]
+                except:
+                    binElements = data[binInds]
+
+                binWidths = nativeResolution[binInds]
+                binProducts = [a*b for a,b in zip(binElements, binWidths)]
+                # Take the sum:
+                binSum = np.sum(binProducts)
+
+                # Integrate the bin:
+                binVal = integ.trapz(binElements, wavelengths[binInds])
+                # binVal = binSum/(2*resolution)
+
+                # Add the value to the current spectrum:
+                currentSpectrum[j] = binVal
+
+            # Once a single spectrum is obtained, add it to the new data array:
+            newData[i, :] = currentSpectrum
+    else:
+        # CONDITION FOR A BINNING WITH UNIQUE BIN WIDTHS.
+        shorts = resolution['short']/10.
+        longs = resolution['long']/10.
+        newWaves = 0.5*(shorts + longs)
+
+        # Instantiate the new data array:
+        if len(data.shape) < 2:
+            newData = np.zeros((1, newWaves.shape[0]))
+        else:
+            newData = np.zeros((data.shape[0], newWaves.shape[0]))
+
+        # First go through all of the wavelengths that are singular
+        myData = data
+        for iWave, short in enumerate(shorts):
+            long = longs[iWave]
+            if (long == short):
+                i = np.argmin(np.abs(wavelengths - short))
+                i2 = np.argmin(np.abs(nativeWavelengths - short))
+                try:
+                    newData[:, iWave] = myData[:, i] * (nativeWavelengths[i2 + 1] - nativeWavelengths[i2])
+                except:
+                    newData[:, iWave] = myData[i] * (nativeWavelengths[i2 + 1] - nativeWavelengths[i2])
+                if zero == True:
+                    # Zero out bin so we don't double count it.
+                    try:
+                        myData[:, i] = np.zeros_like(myData[:, i])
+                    except:
+                        myData[i] = 0.0
+
+        # Then go through the ranges
+        for iWave, short in enumerate(shorts):
+            long = longs[iWave]
+            if (long != short):
+                d1 = np.abs(wavelengths - short)
+                iStart = np.argmin(d1)
+                d2 = np.abs(wavelengths - long)
+                iEnd = np.argmin(d2)
+                wave_int = 0.0
+                # For wavelengths at or below 0.2 nm, just compute the sum:
+                if long <= 0.2:
+                    for i in range(iStart + 1, iEnd + 1):
+                        newData[:, iWave] += myData[:, i] * \
+                                             (wavelengths[i + 1] - wavelengths[i])
+                        wave_int += (wavelengths[i + 1] - wavelengths[i])
+                else:
+                    try:
+                        newData[:, iWave] = integ.trapz(myData[:, iStart:iEnd], wavelengths[iStart:iEnd], axis=1)
+                    except:
+                        # Resample the wavelength data:
+                        newData[:, iWave] = integ.trapz(myData[iStart:iEnd], wavelengths[iStart:iEnd])
+
+                    # # Plotting for a sanity check:
+                    # plt.figure();
+                    # plt.plot(wavelengths[iStart:iEnd], myData[iStart:iEnd], marker='o')
+                    # plt.scatter(newWaves[iWave], newData[:, iWave])
+
+
+                # for i in range(iStart + 1, iEnd + 1):
+                #     binWidths = nativeResolution[iStart + 1:iEnd + 1]
+                #     try:
+                #         binProducts = [a * b for a, b in zip(myData[:, i], binWidths)]
+                #         binSum = np.sum(binProducts)
+                #         newData[:, iWave] = binSum / (iEnd - iStart)
+                #         # newData[:, iWave] += myData[:, i]  / (iEnd - iStart) # * (wavelengths[i + 1] - wavelengths[i])
+                #     except:
+                #         binProducts = [a * b for a, b in zip([myData[i]], binWidths)]
+                #         binSum = np.sum(binProducts)
+                #         newData[:, iWave] = binSum / (iEnd - iStart)
+                #         # newData[:, iWave] += (myData[i] * () )/ (iEnd - iStart)
+                #     wave_int += (wavelengths[i + 1] - wavelengths[i])
+
+    # If only a single spectrum was generated, remove the singleton dimension:
+    if newData.shape[0] == 1:
+        newData = np.squeeze(newData)
+
+    return newWaves, newData

@@ -9,6 +9,11 @@ from random import randrange
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# Local Imports:
+from tools.spectralAnalysis import spectralIrradiance
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
 # Global Variable:
 heuvacTable = np.array([
         [1, 50, 100, 3.106, 2.58],
@@ -77,15 +82,23 @@ def heuvac(F107, F107A):
         Values of the F10.7 solar flux.
     :param F107A: ndarray
         Values of the 81-day averaged solar flux, centered on the present day.
-    :return: heuvacFlux: ndarray
+    :return heuvacFlux: ndarray
         Values of the solar radiant flux in 37 distinct wavelength bands.
+    :return heuvacIrr: ndarray
+        Values of the solar EUV irradiance in 37 distinct wavelength bands.
     """
     P = (F107A + F107)/2.0
     if type(F107) == np.ndarray:
-        heuvacFlux = np.zeros((len(F107), 37)) # Columns represent each wavelength band 37 (59).
+        heuvacFlux = np.zeros((len(F107), 37)) # Columns represent each wavelength band 37
+        heuvacIrr = np.zeros((len(F107), 37))
     else:
         heuvacFlux = np.zeros((1, 37))
+        heuvacIrr = np.zeros((1, 37))
     for i in range(37):
+        wav = 0.5 * (heuvacTable[i, 2] + heuvacTable[i, 1])
+        dWav = heuvacTable[i, 2] - heuvacTable[i, 1]
+        if dWav == 0:
+            dWav = None
         flux68, SEEFAC = refSpecHEUVAC(i+1)
         A = (SEEFAC-1.) / 128.0
         B = 1 - A*68.0
@@ -103,17 +116,20 @@ def heuvac(F107, F107A):
         except:
             if photonFlux < 0:
                 photonFlux = 0
-        heuvacFlux[:, i] = photonFlux / (1e-4) # Divide by a factor of 1e-4 to convert from cm^-2 s^-1 to m^-2 s^-1
+        photonFlux = photonFlux / (1e-4) # Divide by a factor of 1e-4 to convert from cm^-2 s^-1 to m^-2 s^-1
+        heuvacFlux[:, i] = photonFlux
+        heuvacIrr[:, i] = spectralIrradiance(photonFlux, wavelength=wav, dWavelength=dWav)
     # Flip the results before they are returned:
     heuvacFlux = np.flip(heuvacFlux, 1)
-    return heuvacFlux
+    heuvacIrr = np.flip(heuvacIrr, 1)
+    return heuvacFlux, heuvacIrr
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Execution:
 if __name__ == '__main__':
-    # F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
+    F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
     # F107A = averageF107(F107)
-    # myFlux = euvac(F107, F107A)
+    myFlux, myIrr = heuvac(F107, F107)
     # myIrr = spectralIrradiance(myFlux, 400, 5)
     # flux = euvac(200, 200)
     F107 = np.array([randrange(200) for element in range(6000)])

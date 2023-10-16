@@ -15,7 +15,7 @@ from netCDF4 import Dataset
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
 from tools.EUV.fism2_process import read_euv_csv_file
-from tools.EUV.fism2_process import rebin_fism
+from tools.toolbox import rebin
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -27,47 +27,7 @@ euv_folder = '../tools/EUV/'
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# Global Variables:
-euvacTable = np.array([
-    [1, 50, 100, 1.200, 1.0017e-2],
-    [2, 100, 150, 0.450, 7.1250e-3],
-    [3, 150, 200, 4.800, 1.3375e-2],
-    [4, 200, 250, 3.100, 1.9450e-2],
-    [5, 256.32, 256.32, 0.460, 2.7750e-3],
-    [6, 284.15, 284.15, 0.210, 1.3768e-1],
-    [7, 250, 300, 1.679, 2.6467e-2],
-    [8, 303.31, 303.31, 0.800, 2.5000e-2],
-    [9, 303.78, 303.78, 6.900, 3.3333e-3],
-    [10, 300, 350, 0.965, 2.2450e-2],
-    [11, 368.07, 368.07, 0.650, 6.5917e-3],
-    [12, 350, 400, 0.314, 3.6542e-2],
-    [13, 400, 450, 0.383, 7.4083e-3],
-    [14, 465.22, 465.22, 0.290, 7.4917e-3],
-    [15, 450, 500, 0.285, 2.0225e-2],
-    [16, 500, 550, 0.452, 8.7583e-3],
-    [17, 554.37, 554.37, 0.720, 3.2667e-3],
-    [18, 584.33, 584.33, .270, 5.1583e-3],
-    [19, 550, 600, 0.357, 3.6583e-3],
-    [20, 609.76, 609.76, 0.530, 1.6175e-2],
-    [21, 629.73, 629.73, 1.590, 3.3250e-3],
-    [22, 600, 650, 0.342, 1.1800e-2],
-    [23, 650, 700, 0.230, 4.2667e-3],
-    [24, 703.36, 703.36, 0.360, 3.0417e-3],
-    [25, 700, 750, 0.141, 4.7500e-3],
-    [26, 765.15, 765.15, 0.170, 3.8500e-3],
-    [27, 770.41, 770.41, 0.260, 1.2808e-2],
-    [28, 789.36, 789.36, 0.702, 3.2750e-3],
-    [29, 750, 800, 0.758, 4.7667e-3],
-    [30, 800, 850, 1.625, 4.8167e-3],
-    [31, 850, 900, 3.537, 5.6750e-3],
-    [32, 900, 950, 3.000, 4.9833e-3],
-    [33, 977.02, 977.02, 4.400, 3.9417e-3],
-    [34, 950, 1000, 1.475, 4.4167e-3],
-    [35, 1025.72, 1025.72, 3.500, 5.1833e-3],
-    [36, 1031.91, 1031.91, 2.100, 5.2833e-3],
-    [37, 1000, 1050, 2.467, 4.3750e-3]
-    ])
-
+# Global Variable:
 SEEBands = np.array([0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5,
          9.5,  10.5,  11.5,  12.5,  13.5,  14.5,  15.5,  16.5,  17.5,
         18.5,  19.5,  20.5,  21.5,  22.5,  23.5,  24.5,  25.5,  26.5,
@@ -93,6 +53,29 @@ SEEBands = np.array([0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5,
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# TODO: Generic function for automatically downloading FISM2 and/or SEE data (from LISIRD):
+def getIrr(dateStart, dateEnd, source):
+    """
+    Given a starting date and an ending date, automatically download irradiance data from LISIRD for a specific source,
+    including FISM2 (daily or stan bands) or SEE (Level 3 daily).
+    :param dateStart: str
+        The starting date for the data in YYYY-MM-DD format.
+    :param dateEnd: str
+        The ending date for the data in YYYY-MM-DD format.
+    :param source: str
+        The type of data to be obtained. Valid inputs are:
+        - FISM2 (for daily averages of FISM2 data)
+        - FISM2S (for daily averages of FISM2 standard bands, according to Solomon and Qian 2005)
+        - SEE (for Level 3 daily averages of TIMED/SEE data)
+    :return times: ndarray
+        Datetime values for each spectrum.
+    :return wavelengths: ndarray
+        Wavelength bins (bin boundaries) for the spectral data.
+    :return irradiance: ndarray
+        A 2D array where each row is a spectrum at a particular time, and the columns are wavelength bands.
+    """
+    return 0
+
 def obtainFism1(fismFiles, euv_bins, saveLoc=None):
     """
     Given muliple FISM1 .dat files, get the information from each band, using code developed by Dr. Aaron Ridley.
@@ -155,66 +138,33 @@ def obtainFism1(fismFiles, euv_bins, saveLoc=None):
         finalIrrArray = pickle.load(myIrrPkl)
     return irrTimes, finalIrrArray
 
-def obtainFism2(myFism2File, euv_bins, saveLoc=None):
+def obtainFism2(myFism2File):
     """
-    Given a single FISM2 netcdf4 file, load it in and rebin it into 59 GITM wavelength bins, saving it to pickle files.
+    Load in spectrum data from a FISM2 file.
     :param myFism2File: str
         The location of the NETCDF4 file.
-    :param euv_bins: dict
-        EUV bins with which to rebin the FISM1 data. Obtained from fism2_process.rebin_fism.
-    :param saveLoc: str
-        Optional argument that controls where pickle files are saved.
-    :return irrTimes: ndarray
-        A 1d array of datetimes corresponding to each set of irradiance values.
-    :return new_fism2_irr: ndarray
-        An ndarray containing all of the individual 59 irradiance values in each band from all .dat files.
-    :return new_fism2_unc: ndarray
-        An ndarray containing uncertainties of all the individual 59 irradiance values in each band from all .dat files.
+    :return datetimes: ndarray
+        An array of datetimes for each TIMED/SEE spectra.
+    :return wavelengths: ndarray
+        A one-dimensional array of wavelengths at which there are irradiance values.
+    :return irradiances: ndarray
+        A two-dimensional array of irradiance values at each time.
+    :return uncertainties: ndarray
+        A two-dimensional array of irradiance uncertainty values at each time.
     """
-    myIrrPickleFile = 'myIrrFISM2.pkl'
-    myIrrUncPickleFile = 'myIrrUncFISM2.pkl'
-    myTimePickleFile = 'myTimesFISM2.pkl'
-    override = True
-    if saveLoc != None:
-        searchString = saveLoc + myIrrPickleFile
-    else:
-        searchString = myIrrPickleFile
-    if os.path.isfile(searchString) == False or override == True:
-        fism2Data = Dataset(myFism2File)
-        irradiance = fism2Data.variables['irradiance']
-        wavelength = fism2Data.variables['wavelength']
-        uncertainty = fism2Data.variables['uncertainty']
-        dates = fism2Data.variables['date']
-        datetimes = []
-        for i in range(len(dates)):
-            year = dates[i][:4]
-            day = dates[i][4:]
-            currentDatetime = datetime(int(year), 1, 1) + timedelta(int(day) - 1) + timedelta(hours=12)
-            datetimes.append(currentDatetime)
-        datetimes = np.asarray(datetimes)
-        # Performing the rebinning:
-        new_fism2_irr, fism2_ave_wave = rebin_fism(np.asarray(wavelength)*10, np.asarray(irradiance), euv_bins) # isolate_fism
-        new_fism2_unc, fism2_ave_wave = rebin_fism(np.asarray(wavelength)*10, np.asarray(uncertainty), euv_bins) # isolate_fism
-        # Save the data:
-        if saveLoc != None:
-            myTimePkl = open(myTimePickleFile, 'wb')
-            myIrrPkl = open(myIrrPickleFile, 'wb')
-            myIrrUncPkl = open(myIrrUncPickleFile, 'wb')
-        else:
-            myTimePkl = open(saveLoc + myTimePickleFile, 'wb')
-            myIrrPkl = open(saveLoc + myIrrPickleFile, 'wb')
-            myIrrUncPkl = open(saveLoc + myIrrUncPickleFile, 'wb')
-        pickle.dump(np.asarray(datetimes), myTimePkl)
-        pickle.dump(new_fism2_irr, myIrrPkl)
-        pickle.dump(new_fism2_unc, myIrrUncPkl)
-    else:
-        myTimePkl = open(saveLoc + myTimePickleFile, 'rb')
-        datetimes = pickle.load(myTimePkl)
-        myIrrPkl = open(saveLoc + myIrrPickleFile, 'rb')
-        new_fism2_irr = pickle.load(myIrrPkl)
-        myIrrUncPkl = open(saveLoc + myIrrUncPickleFile, 'rb')
-        new_fism2_unc = pickle.load(myIrrUncPkl)
-    return datetimes, new_fism2_irr, new_fism2_unc
+    fism2Data = Dataset(myFism2File)
+    irradiance = np.asarray(fism2Data.variables['irradiance'])
+    wavelengths = np.asarray(fism2Data.variables['wavelength'])
+    uncertainties = np.asarray(fism2Data.variables['uncertainty'])
+    dates = fism2Data.variables['date']
+    datetimes = []
+    for i in range(len(dates)):
+        year = dates[i][:4]
+        day = dates[i][4:]
+        currentDatetime = datetime(int(year), 1, 1) + timedelta(int(day) - 1) + timedelta(hours=12)
+        datetimes.append(currentDatetime)
+    datetimes = np.asarray(datetimes)
+    return datetimes, wavelengths, irradiance, uncertainties
 
 def obtainSEE(seeFile):
     """
@@ -244,69 +194,6 @@ def obtainSEE(seeFile):
         datetimes.append(currentDatetime)
     datetimes = np.asarray(datetimes)
     return datetimes, wavelengths, irradiances, uncertainties
-
-def rebinSEE(SEEirradiances, wavelengths):
-    """
-    Take irradiances output by by getSEE and bin them according to the strictures of the bin boundaries given by 'bins'.
-    :param: SEEirradiances: ndarray
-        TIMED/SEE irradiances in the 195 bands collected by TIMED/SEE, in units of W/m^2/nm. The shape of irradiances
-        must be n x 195, where n is the number of times (samples) for which irradiances were taken.
-    :param: wavelengths: dict
-        A dictionary of two elements, one with 'short' wavelengths and one with 'long' wavelengths. Returned by
-        fism2_process.read_euv_csv_file. The units here are in angstroms.
-    :return: rebinnedIrrData: ndarray
-        Rebinned SEE data according to the supplied bin boundaries.
-    """
-    irradiances = SEEirradiances.copy()
-    # The wavelength bands for the SEE data are in units of nanometers, and are spaced by 1 nm:
-
-    shorts = wavelengths['short']
-    longs = wavelengths['long']
-    nWaves = len(shorts)
-    rebinnedIrrData = np.zeros((irradiances.shape[0], 59))
-    ave_wav = np.zeros(nWaves)
-
-    # Nothing needs to be done to convert the units of the SEE data to W/m^2 since the data is spaced by 1 nm.
-
-    # Iterate through each sample of the SEE irradiance data:
-    for i in range(irradiances.shape[0]):
-        # First, go through the singular wavelengths:
-        for iWave, short in enumerate(shorts):
-            long = longs[iWave]
-            if (long == short):
-                d = np.abs(SEEBands - short)
-                j = np.argmin(d)
-                # If the value of irradiance in this bin is at or below zero, simply set equal to zero.
-                if irradiances[i][j] <= 0:
-                    rebinnedIrrData[i, iWave] = 0
-                else:
-                    rebinnedIrrData[i, iWave] = irradiances[i][j] # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
-                # Zero out bin so we don't double count it.
-                # irradiances[i][j] = 0.0
-
-        # Then, go through the ranges:
-        for iWave, short in enumerate(shorts):
-            long = longs[iWave]
-            ave_wav[iWave] = (short + long) / 2.0
-            if (long != short):
-                d1 = np.abs(SEEBands - short)
-                iStart = np.argmin(d1)
-                d2 = np.abs(SEEBands - long)
-                iEnd = np.argmin(d2)
-                for j in range(iStart + 1, iEnd + 1):
-                    # If the value of irradiance in this bin is at or below zero, simply set equal to zero.
-                    if irradiances[i][j] <= 0:
-                        rebinnedIrrData[i, iWave] = 0 # += 0
-                    else:
-                        rebinnedIrrData[i, iWave] += irradiances[i][j] # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
-
-    # sampleIdx = 18
-    # fig = plt.figure(figsize=(12, 8))
-    # ax = fig.add_subplot(111)
-    # ax.plot(SEEBands, SEEirradiances[sampleIdx, :], 'b-')
-    # ax.plot(ave_wav, rebinnedIrrData[sampleIdx, :], 'ro')
-
-    return rebinnedIrrData
 
 def obtainNRLSSIS2(filename):
     """
@@ -338,92 +225,114 @@ def obtainNRLSSIS2(filename):
     datetimes = np.asarray(datetimes)
     return datetimes, wavelengths, bandwidths, irradiances, uncertainties
 
-def rebinNRL(NRLirradiances, wavelengths, oldWavelengths, bandwidths):
+def obtainSDO(seeFile):
     """
-    Take irradiances output by by obtainNRLSSIS2 and bin them according to the strictures of the bin boundaries given by 'bins'.
-    :param: NRLirradiances: ndarray
-        TIMED/SEE irradiances in the 195 bands collected by TIMED/SEE, in units of W/m^2/nm. The shape of irradiances
-        must be n x 159, where n is the number of times (samples) for which irradiances were taken.
-    :param: wavelengths: dict
-        A dictionary of two elements, one with 'short' wavelengths and one with 'long' wavelengths. Returned by
-        fism2_process.read_euv_csv_file. The units here are in angstroms.
-    :return oldWavelengths: ndarray
-        The wavelengths of corresponding to the NRL data. Should be in nanometers.
-    :return bandwidths: ndarray
-        The width of the corresponding band for each irradiance measurement.
-    :return: rebinnedIrrData: ndarray
-        Rebinned SEE data according to the supplied bin boundaries.
+    Given an SDO NETCDF4 file, load in and return the timestamps, wavelengths, irradiances, and uncertainties.
+    :param seeFile: str
+        The NETCDF4 file containing SDO/EVE data.
+    :return datetimes: ndarray
+        An array of datetimes for each SDO/EVE spectra.
+    :return wavelengths: ndarray
+        A one-dimensional array of wavelengths at which there are irradiance values.
+    :return irradiances: ndarray
+        A two-dimensional array of irradiance values at each time.
+    :return uncertainties: ndarray
+        A two-dimensional array of irradiance uncertainty values at each time.
     """
-    irradiances = NRLirradiances.copy()
-    # The wavelength bands for the NRL data are in units of nanometers, and have variable spacing.
-
-    # TODO: Fix things so that only the relevant bands are considered.
-    shorts = wavelengths['short']
-    longs = wavelengths['long']
-    mids = 0.5*(shorts + longs)
-    nWaves = len(shorts)
-    validWavelengthInds = np.where(oldWavelengths >= shorts[0])[0]
-    validWavelengths = oldWavelengths[validWavelengthInds]
-    validIrradiances = NRLirradiances[:, validWavelengthInds]
-    # Isolate the GITM wavelengths between the max and min of the valid NRL wavelengths:
-    lowGitmBandIndex = np.where(shorts >= validWavelengths[0])[0]
-    validShorts = shorts[lowGitmBandIndex[0]:]
-    validLongs = longs[lowGitmBandIndex[0]:]
-    validMids = 0.5*(validShorts + validLongs)
-
-    # Sum the NRL irradiance data into the valid GITM bins:
-    rebinnedIrrData = np.zeros((irradiances.shape[0], len(validMids)))
-    ave_wav = np.zeros(nWaves)
-    # Iterate through each sample of the NRL irradiance data:
-    for i in range(irradiances.shape[0]):
-        # First, go through the singular wavelengths:
-        for iWave, short in enumerate(validShorts):
-            long = validLongs[iWave]
-            if (long == short):
-                d = np.abs(oldWavelengths - short)
-                j = np.argmin(d)
-                rebinnedIrrData[i, iWave] = validIrradiances[i][j]  # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
-                # # zero out bin so we don't double count it.
-                # validIrradiances[i][j] = 0.0
-
-        # Then, go through the ranges:
-        for iWave, short in enumerate(validShorts):
-            long = validLongs[iWave]
-            ave_wav[iWave] = (short + long) / 2.0
-            if (long != short):
-                d1 = np.abs(oldWavelengths - short)
-                iStart = np.argmin(d1)
-                d2 = np.abs(oldWavelengths - long)
-                iEnd = np.argmin(d2)
-                for j in range(iStart + 1, iEnd + 1):
-                    rebinnedIrrData[i, iWave] += validIrradiances[i][j]  # * ((SEEBands[j + 1] - SEEBands[j]) / 10.0)
-
-    # sampleIdx = 18
-    # fig = plt.figure(figsize=(12, 8))
-    # ax = fig.add_subplot(111)
-    # ax.plot(SEEBands, SEEirradiances[sampleIdx, :], 'b-')
-    # ax.plot(ave_wav, rebinnedIrrData[sampleIdx, :], 'ro')
-
-    return rebinnedIrrData
+    sdoData = Dataset(seeFile)
+    dates = np.squeeze(sdoData.variables['MERGEDDATA.YYYYDOY'])
+    wavelengths = np.squeeze(sdoData.variables['SPECTRUMMETA.WAVELENGTH'])
+    irradiances = np.squeeze(sdoData.variables['MERGEDDATA.SP_IRRADIANCE'])
+    uncertainties = np.squeeze(sdoData.variables['MERGEDDATA.SP_STDEV'])
+    precision = np.squeeze(sdoData.variables['MERGEDDATA.SP_PRECISION'])
+    datetimes = []
+    for i in range(len(dates)):
+        year = str(dates[i])[:4]
+        day = str(dates[i])[4:]
+        currentDatetime = datetime(int(year), 1, 1) + timedelta(int(day) - 1) + timedelta(hours=12)
+        datetimes.append(currentDatetime)
+    datetimes = np.asarray(datetimes)
+    return datetimes, wavelengths, irradiances, uncertainties
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Execution
 if __name__=="__main__":
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
+    mids = 0.5*(euv_data_59['short'] + euv_data_59['long'])
+
     # Load in the FISM1 data in multiple files, rebin it into 59 GITM wavelength bins, and combine it into a single pickle file:
-    myFism1Files = os.listdir(fism1_spectra_folder)
-    myIrrTimesFISM1, myIrrDataAllFISM1 = obtainFism1(myFism1Files, euv_data_59, saveLoc=fism1_spectra_folder)
+    # myFism1Files = os.listdir(fism1_spectra_folder)
+    # myIrrTimesFISM1, myIrrDataAllFISM1 = obtainFism1(myFism1Files, euv_data_59, saveLoc=fism1_spectra_folder)
+
     # Load in the FISM2 data, rebin it into 59 GITM wavelength bins, and save it to a pickle file:
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
-    myIrrTimesFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59, saveLoc=fism2_spectra_folder)
-    # Load in TIMED/SEE data, rebin it into 59 GITM wavelength bins, and save it to pickle file:
-    seeFile = '../measurements/TIMED_SEE_Level_3/see_L3_merged_1947-2023.ncdf'
+    myIrrTimesFISM2, myFISM2Wavelengths, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
+    # Rebinning FISM2 into the SEE Bands:
+    rebinnedFISM2Wavelengths_like_SEE, rebinnedFISM2Irr_like_SEE = rebin(wavelengths=myFISM2Wavelengths,
+                                                                         data=myIrrDataAllFISM2,
+                                                                         limits=[np.min(SEEBands)/10., np.max(SEEBands)/10.], resolution=1.)
+    # Then rebinning it into the GITM Bands:
+    rebinnedFISM2Wavelengths, rebinnedFISM2Irr = rebin(wavelengths=myFISM2Wavelengths, data=myIrrDataAllFISM2,
+                                                       resolution=euv_data_59, zero=False) #limits=[np.min(SEEBands)/10., np.max(SEEBands)/10.])
+
+    # Load in SDO/EVE data:
+    # sdoFile = '../measurements/SDO_EVE_Level_3/latest_EVE_L3_merged_1nm_2010-2023.ncdf'
+    # myIrrTimesSDO, mySDOWavelengths, myIrrDataAllSDO, myIrrUncAllSDO = obtainSDO(sdoFile)
+    # rebinnedSDOWavelengths, rebinnedSDOIrr = rebin(wavelengths=mySDOWavelengths, data=myIrrDataAllSDO[20166, :],
+    #                                                    resolution=1.,
+    #                                                    limits=[np.min(SEEBands) / 10., np.max(SEEBands) / 10.])
+    # FISM2 20066 = TIMED/SEE 0
+
+    # Load in TIMED/SEE data and rebin it into 59 GITM wavelength bins:
+    seeFile = '../measurements/TIMED_SEE_Level_3/latest_see_L3_merged_2002-2023.ncdf'
     myIrrTimesSEE, mySEEWavelengths, myIrrDataAllSEE, myIrrUncAllSEE = obtainSEE(seeFile)
-    rebinnedIrrData = rebinSEE(myIrrDataAllSEE, euv_data_59)
-    # Load in NLRSIS2 data, rebin it into 59 GITM wavelength bins, and save it to pickle file:
-    NRLFile = '../empiricalModels/irradiances/NRLSSI2/ssi_v02r01_daily_s18820101_e20221231_c20230123.nc'
-    datetimesNRL, wavelengthsNRL, bandwidthsNRL, irradiancesNRL, uncertaintiesNRL = obtainNRLSSIS2(NRLFile)
-    rebinnedNRLData = rebinNRL(irradiancesNRL, euv_data_59, wavelengthsNRL, bandwidthsNRL)
+    myCleanIrrDataAllSEE = myIrrDataAllSEE.copy()
+    myCleanIrrDataAllSEE[myCleanIrrDataAllSEE <= 0] = np.nan
+    rebinnedSEEWavelengths, rebinnedSEEIrr = rebin(wavelengths=mySEEWavelengths, data=myCleanIrrDataAllSEE,
+                                                       resolution=euv_data_59, factor=5, zero=False)
+
+    # Load in NRLSSI2 data, rebin it into 59 GITM wavelength bins, and save it to pickle file:
+    # NRLFile = '../empiricalModels/irradiances/NRLSSI2/ssi_v02r01_daily_s18820101_e20221231_c20230123.nc'
+    # datetimesNRL, wavelengthsNRL, bandwidthsNRL, irradiancesNRL, uncertaintiesNRL = obtainNRLSSIS2(NRLFile)
+
+    # VISUALIZE FISM2 and SEE:
+    import matplotlib.pyplot as plt
+    plt.figure()
+    # plt.plot(myFISM2Wavelengths, myIrrDataAllFISM2[20166, :], label='FISM2 (raw)')
+    # plt.plot(rebinnedFISM2Wavelengths_like_SEE, rebinnedFISM2Irr_like_SEE[20166, :], label='FISM2 (rebinned like SEE)')
+    plt.plot(rebinnedFISM2Wavelengths, rebinnedFISM2Irr[20166, :], marker='o', label='FISM2 (rebinned)')
+    # plt.plot(mySEEWavelengths, myIrrDataAllSEE[100, :], label='TIMED/SEE (raw)')
+    plt.plot(rebinnedSEEWavelengths, rebinnedSEEIrr[100, :], marker='o', label='TIMED/SEE (rebinned)')
+    # Plot the bin boundaries:
+    singularInds = np.where(euv_data_59['short'] == euv_data_59['long'])[0]
+    widthInds = np.where(euv_data_59['short'] != euv_data_59['long'])[0]
+    # for line in euv_data_59['short'][singularInds]/10.:
+    #     plt.axvline(x=line, color='b')
+    # for line2 in euv_data_59['short'][widthInds]/10.:
+    #     plt.axvline(x=line2, color='k')
+    # for line3 in euv_data_59['long'][widthInds]/10.:
+    #     plt.axvline(x=line3, color='k')
+    plt.legend()
+    plt.ylim([-0.0017, 0.0157])
+    # Semilogy:
+    plt.figure()
+    ax = plt.gca()
+    plt.scatter(myFISM2Wavelengths, myIrrDataAllFISM2[0, :], label='FISM2 (raw)')
+    plt.scatter(rebinnedFISM2Wavelengths, rebinnedFISM2Irr[20166, :], label='FISM2 (rebinned)')
+    plt.scatter(mySEEWavelengths, myIrrDataAllSEE[100, :], label='TIMED/SEE (raw)')
+    plt.scatter(rebinnedSEEWavelengths, rebinnedSEEIrr[100, :], label='TIMED/SEE (rebinned)')
+    ax.set_yscale('log')
+    plt.legend()
+
+    # Time series:
+    for i in range(rebinnedFISM2Irr.shape[1]):
+        i = 2
+        plt.figure();
+        plt.plot(myIrrTimesFISM2, rebinnedFISM2Irr[:, i], label='FISM2')
+        plt.plot(myIrrTimesSEE, rebinnedSEEIrr[:, i], label='TIMED/SEE')
+        plt.legend()
+        plt.title(str(mids[i])+' Angstroms')
+
     sys.exit(0)
 # -----------------------------------------------------------------------------------------------------------------------
