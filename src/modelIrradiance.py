@@ -8,6 +8,8 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports:
 import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -17,6 +19,9 @@ from empiricalModels.models.HEUVAC import heuvac
 from empiricalModels.models.SOLOMON import solomon
 from NEUVAC.src import neuvac
 from tools import processIndices
+from tools import processIrradiances
+from tools import spectralAnalysis
+from tools import toolbox
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -32,6 +37,8 @@ euvacTable = euvac.euvacTable
 neuvacTable = np.flipud(neuvac.waveTable) # Only use this table for its wavelength boundaries in the first two columns.
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt' # For actually executing NEUVAC.
 solomonTable = solomon.solomonTable
+SEETable = processIrradiances.SEEBands
+figuresDirectory = '../experiments/Figures/'
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -48,12 +55,12 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
         The ending date, in YYYY-MM-DD format.
     :param bins: str
         The scheme with which to bin the data. The following arguments are valid:
-        - EUVAC, HEUVAC or None: The 37 wavelength bins used by EUVAC and HEUVAC.
-        - NEUVAC: The 59 wavelength bins used by Aether and GITM.
-        - SOLOMON: The 23 bands from Solomon and Qian 2005.
-        - SEE: The bins corresponding to TIMED/SEE Level 3 daily-averaged spectra.
+        - 'EUVAC', 'HEUVAC': The 37 wavelength bins used by EUVAC and HEUVAC.
+        - 'NEUVAC' or None: The 59 wavelength bins used by Aether and GITM.
+        - 'SOLOMON': The 23 bands from Solomon and Qian 2005.
+        - 'SEE': The bins corresponding to TIMED/SEE Level 3 daily-averaged spectra.
     :param source: str
-        Arguments are either FISM2 or SEE. If no argument is given, then the default is to use the same data source
+        Arguments are either 'FISM2' or 'SEE'. If no argument is given, then the default is to use the same data source
         as specified by 'bins'. Otherwise, this argument allows one to bin up irradiance data from one source according
         to the bins of another source. Please note the following:
         For EUVAC/HEUVAC/NEUVAC/SOLOMON, no other source can be applied. These models are specific to specific
@@ -73,54 +80,111 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
     times, F107, F107A = processIndices.getF107(dateStart, dateEnd)
 
     # Obtain the desired bins:
-    if bins == 'HEUVAC':
+    if bins == 'EUVAC' or bins == 'HEUVAC':
         binLow = euvacTable[:, 1]
         binHigh = euvacTable[:, 2]
         binCenters = 0.5 * (binLow + binHigh)
-    elif bins == 'NEUVAC':
+    elif bins == 'SOLOMON':
+        binLow = solomonTable[:, 1]
+        binHigh = solomonTable[:, 2]
+        binCenters = 0.5 * (binLow + binHigh)
+    elif bins == 'SEE':
+        # Bins for SEE are the center wavelength of each band. They are uniformly spaced by 10 Angstroms.
+        binLow = SEETable - 50
+        binHigh = SEETable + 50
+        binCenters = SEETable
+    else:
+        # Default to using NEUVAC:
         binLow = neuvacTable[:, 0]
         binHigh = neuvacTable[:, 1]
         binCenters = 0.5 * (binLow + binHigh)
-    elif bins == 'SOLOMON':
-        # TODO: COMPLETE THE SOLOMON MODEL!
-        binLow = solomonTable  # []!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        binHigh = solomonTable  # []!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        binCenters = 0.5 * (solomonTable + solomonTable)  # !!!!!!!!!!!!!!!!!!!!!!!!!!!
-    else:
-        # Default to using EUVAC:
-        binLow = euvacTable[:, 1]
-        binHigh = euvacTable[:, 2]
-        binCenters = 0.5 * (binLow + binHigh)
+
+    # Establish a dictionary for wavelength resolution:
+    euv_data = {'short': binLow,
+                'long': binHigh}
 
     # Obtain irradiances in the desired manner:
     if source == None:
         if bins == 'HEUVAC':
             flux, irradiance = heuvac.heuvac(F107, F107A)
-            return times, binLow, binHigh, binCenters, irradiance
         elif bins == 'NEUVAC':
             flux, irradiance = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
-            return times, binLow, binHigh, binCenters, irradiance
         elif bins == 'SOLOMON':
-            # TODO: COMPLETE THE SOLOMON MODEL!
+            # TODO: FIX ISSUES WITH THE SOLOMON MODEL!
             flux, irradiance = solomon.solomon(F107, F107A)
-            return times, binLow, binHigh, binCenters, irradiance
         else:
             # Default to using EUVAC:
             flux, irradiance = euvac.euvac(F107, F107A)
-            return times, binLow, binHigh, binCenters, irradiance
     else:
-        # FISM2:
-        if source == 'FISM2':
-            print()
-        # TIMED/SEE:
-        elif source == 'SEE':
-            print()
+        # Obtain the irradiance data:
+        if source == 'SEE':
+            binFactor = 5
+            # Download/load in TIMED/SEE data:
+            times, rawWavelengths, rawIrr = processIrradiances.getIrr(dateStart, dateEnd, source='SEE')
+            # SEE Data must be cleaned before being returned:
+            rawIrr[rawIrr <= 0] = np.nan
+        else:
+            binFactor = None
+            if source == 'FISM2':
+                times, rawWavelengths, rawIrr = processIrradiances.getIrr(dateStart, dateEnd, source='FISM2')
+            if source == 'FISM2S':
+                times, rawWavelengths, rawFlux = processIrradiances.getIrr(dateStart, dateEnd, source='FISM2S')
+                # The FISM2 Standard Bands are in units of photons/cm^2/s and need to be converted to irradiances in
+                # units of W/m^2:
+                rawIrr = np.zeros_like(rawFlux)
+                for i in range(rawFlux.shape[1]):
+                    wav = rawWavelengths[i]
+                    dWav = solomon.solomonBandWidths[i]
+                    rawIrr[:, i] = spectralAnalysis.spectralIrradiance(rawFlux[:, i], wav, dWavelength=dWav)
+                if bins != 'SOLOMON':
+                    raise ValueError("'FISM2S' can only be supplied as a source if 'bins' is set to 'SOLOMON'.")
 
+        # Rebin the obtained irradiance data as desired:
+        if bins == 'SOLOMON' and source == 'FISM2S':
+            # Do nothing:
+            wavelengths = rawWavelengths
+            irradiance = rawIrr
+            print('No rebinning will take place for FISM2 Daily Standard Bands Data.')
+        else:
+            wavelengths, irradiance = toolbox.rebin(wavelengths=rawWavelengths, data=rawIrr, resolution=euv_data,
+                                        factor=binFactor, zero=False)
 
+    # Plotting irradiance data:
+    # Make a directory to save things into, if it doens't already exist:
+    if mySource:
+        titleStr = source+' ('+bins+' bins)'
+        figName = source+'_'+bins+'_bins_'+dateStart+'-'+dateEnd+'.png'
+        saveDir = figuresDirectory+source+'_'+bins+'_'+dateStart+'-'+dateEnd+'/'
+    else:
+        titleStr = bins
+        figName = source + '_' + dateStart + '-' + dateEnd + '.png'
+        saveDir = figuresDirectory + source + dateStart + '-' + dateEnd+'/'
+    toolbox.openDir(saveDir)
 
+    # 1: Image of the entire spectrum:
+    y_lims = mdates.date2num(times)
+    myExtent = [wavelengths[0], wavelengths[-1], y_lims[0], y_lims[-1]]
+    fig, ax = plt.subplots(figsize=(12, 8))
+    ax.imshow(irradiance, extent=myExtent, aspect='auto')
+    ax.yaxis_date()
+    date_format = mdates.DateFormatter('%Y-%m-%d')
+    ax.yaxis.set_major_formatter(date_format)
+    ax.set_xlabel('Wavelength (nm)')
+    ax.set_ylabel('Date')
+    ax.set_title('Spectra for '+titleStr)
+    plt.savefig(saveDir+figName, dpi=300)
 
+    # 2: Time-series images of each wavelength band:
+    for i in range(irradiance.shape[1]):
+        fig = plt.figure(figsize=(12, 8))
+        plt.plot(times, irradiance[:, i])
+        plt.xlabel('Time')
+        plt.ylabel('Irradiance W/m$^2$(/nm)')
+        plt.title('Irradiance Time Series '+str(np.round(wavelengths[i], 2))+' nm')
+        plt.savefig(saveDir+figName[:-4]+'_'+str(np.round(wavelengths[i], 2)).replace('.','_')+'_nm.png')
+        plt.close(fig)
 
-
+    return times, binLow, binHigh, binCenters, irradiance
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -128,7 +192,7 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
 if __name__=="__main__":
     myDateStart = '2020-07-20' # Date on when St. Alphonsus Ligouri was consecrated a bishop.
     myDateEnd = '2020-08-01' # Date on when St. Alphonsus Ligouri died (and when he was canonized).
-    myBins = 'HEUVAC'
-    mySource = None
+    myBins = 'SOLOMON'
+    mySource = 'FISM2S'
     getIrradiance(myDateStart, myDateEnd, myBins, source=mySource)
 # -----------------------------------------------------------------------------------------------------------------------

@@ -4,7 +4,7 @@
 # Top-level Imports
 import pandas as pd
 import numpy as np
-import math, pickle
+import math, pickle, os
 from sklearn.impute import SimpleImputer
 from datetime import datetime, timedelta
 from scipy.interpolate import CubicSpline
@@ -18,8 +18,34 @@ from sklearn.metrics import mean_squared_error
 from tqdm import tqdm
 import scipy.integrate as integ
 from scipy import interpolate
+from urllib.request import urlretrieve
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions
+def openDir(directory):
+    """
+    Create a directory, unless it already exists.
+    :param directory:
+        A string that is the directory to be created, with respect to the current location.
+    """
+    if os.path.isdir(directory) == False:
+        os.makedirs(directory)
+    else:
+        print('Directory already exists: '+directory)
+
+def urlObtain(url, fname):
+    """
+    Download a file from a URL. If the file already exists, don't download it; just print the location of the existing
+    file.
+    :param url: str
+        The URL where the file is to be downloaded from.
+    :param fname: str
+        The filename which the downloaded file will be saved to.
+    """
+    if os.path.isfile(fname) == True:
+        print('File already exists (loading in data): '+fname)
+    else:
+        urlretrieve(url, fname)
+
 def savePickle(data, pickleFilename):
     """
     Given some data (a list, dict, or array), save it is a pickle file with a user-supplied name.

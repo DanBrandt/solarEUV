@@ -15,7 +15,7 @@ from netCDF4 import Dataset
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
 from tools.EUV.fism2_process import read_euv_csv_file
-from tools.toolbox import rebin
+from tools import toolbox
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -53,7 +53,6 @@ SEEBands = np.array([0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5,
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-# TODO: Generic function for automatically downloading FISM2 and/or SEE data (from LISIRD):
 def getIrr(dateStart, dateEnd, source):
     """
     Given a starting date and an ending date, automatically download irradiance data from LISIRD for a specific source,
@@ -74,7 +73,39 @@ def getIrr(dateStart, dateEnd, source):
     :return irradiance: ndarray
         A 2D array where each row is a spectrum at a particular time, and the columns are wavelength bands.
     """
-    return 0
+    # Converting the input time strings to datetimes:
+    dateStartDatetime = datetime.strptime(dateStart, "%Y-%m-%d")
+    dateEndDatetime = datetime.strptime(dateEnd, "%Y-%m-%d")
+
+    # Check if the user has asked for a source that can be obtained:
+    validSources = ['FISM2', 'FISM2S', 'SEE']
+    if source not in validSources:
+        raise ValueError("Variable 'source' must be either 'FISM2', 'FISM2S', or 'SEE'.")
+
+    # Download the most recent file for the corresponding source and read it in:
+    if source == 'FISM2':
+        url = 'https://lasp.colorado.edu/eve/data_access/eve_data/fism/daily_hr_data/daily_data.nc'
+        fname = 'FISM2_daily_data.nc'
+        toolbox.urlObtain(url, fism2_spectra_folder + fname)
+        datetimes, wavelengths, irradiance, uncertainties = obtainFism2(fism2_spectra_folder + fname)
+    elif source == 'FISM2S':
+        url = 'https://lasp.colorado.edu/eve/data_access/eve_data/fism/daily_bands/daily_bands.nc'
+        fname = 'FISM2_daily_bands.nc'
+        toolbox.urlObtain(url, fism2_spectra_folder + fname)
+        datetimes, wavelengths, irradiance, uncertainties = obtainFism2(fism2_spectra_folder + fname, bands=True)
+    else:
+        url = 'https://lasp.colorado.edu/data/timed_see/level3/latest_see_L3_merged.ncdf'
+        fname = 'TIMED_SEE_Level_3.nc'
+        toolbox.urlObtain(url, TIMED_spectra_folder + fname)
+        datetimes, wavelengths, irradiance, uncertainties = obtainSEE(TIMED_spectra_folder + fname)
+
+    # Subset the data according to user demands:
+    validInds = np.where((datetimes >= dateStartDatetime) & (datetimes <= dateEndDatetime))[0]
+    times = datetimes[validInds]
+    irradiance = irradiance[validInds, :]
+
+    # Return the resulting data:
+    return times, wavelengths, irradiance
 
 def obtainFism1(fismFiles, euv_bins, saveLoc=None):
     """
@@ -138,11 +169,13 @@ def obtainFism1(fismFiles, euv_bins, saveLoc=None):
         finalIrrArray = pickle.load(myIrrPkl)
     return irrTimes, finalIrrArray
 
-def obtainFism2(myFism2File):
+def obtainFism2(myFism2File, bands=False):
     """
     Load in spectrum data from a FISM2 file.
     :param myFism2File: str
         The location of the NETCDF4 file.
+    :param bands: bool
+        If True, loads in the data segmented into the Solomon and Qian 2005 standard bands.
     :return datetimes: ndarray
         An array of datetimes for each TIMED/SEE spectra.
     :return wavelengths: ndarray
@@ -153,9 +186,13 @@ def obtainFism2(myFism2File):
         A two-dimensional array of irradiance uncertainty values at each time.
     """
     fism2Data = Dataset(myFism2File)
-    irradiance = np.asarray(fism2Data.variables['irradiance'])
+    if bands==True:
+        irradiance = np.asarray(fism2Data.variables['ssi'])
+        uncertainties = np.asarray(fism2Data.variables['band_width']) # TODO: Replace with an estimation of uncertainty
+    else:
+        irradiance = np.asarray(fism2Data.variables['irradiance'])
+        uncertainties = np.asarray(fism2Data.variables['uncertainty'])
     wavelengths = np.asarray(fism2Data.variables['wavelength'])
-    uncertainties = np.asarray(fism2Data.variables['uncertainty'])
     dates = fism2Data.variables['date']
     datetimes = []
     for i in range(len(dates)):
@@ -269,11 +306,11 @@ if __name__=="__main__":
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, myFISM2Wavelengths, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebinning FISM2 into the SEE Bands:
-    rebinnedFISM2Wavelengths_like_SEE, rebinnedFISM2Irr_like_SEE = rebin(wavelengths=myFISM2Wavelengths,
+    rebinnedFISM2Wavelengths_like_SEE, rebinnedFISM2Irr_like_SEE = toolbox.rebin(wavelengths=myFISM2Wavelengths,
                                                                          data=myIrrDataAllFISM2,
                                                                          limits=[np.min(SEEBands)/10., np.max(SEEBands)/10.], resolution=1.)
     # Then rebinning it into the GITM Bands:
-    rebinnedFISM2Wavelengths, rebinnedFISM2Irr = rebin(wavelengths=myFISM2Wavelengths, data=myIrrDataAllFISM2,
+    rebinnedFISM2Wavelengths, rebinnedFISM2Irr = toolbox.rebin(wavelengths=myFISM2Wavelengths, data=myIrrDataAllFISM2,
                                                        resolution=euv_data_59, zero=False) #limits=[np.min(SEEBands)/10., np.max(SEEBands)/10.])
 
     # Load in SDO/EVE data:
@@ -289,7 +326,7 @@ if __name__=="__main__":
     myIrrTimesSEE, mySEEWavelengths, myIrrDataAllSEE, myIrrUncAllSEE = obtainSEE(seeFile)
     myCleanIrrDataAllSEE = myIrrDataAllSEE.copy()
     myCleanIrrDataAllSEE[myCleanIrrDataAllSEE <= 0] = np.nan
-    rebinnedSEEWavelengths, rebinnedSEEIrr = rebin(wavelengths=mySEEWavelengths, data=myCleanIrrDataAllSEE,
+    rebinnedSEEWavelengths, rebinnedSEEIrr = toolbox.rebin(wavelengths=mySEEWavelengths, data=myCleanIrrDataAllSEE,
                                                        resolution=euv_data_59, factor=5, zero=False)
 
     # Load in NRLSSI2 data, rebin it into 59 GITM wavelength bins, and save it to pickle file:
