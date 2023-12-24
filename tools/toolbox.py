@@ -980,6 +980,25 @@ def forecastInversion(forecastData, history, lastDiff, trend, window):
 def find_exp(number) -> int:
     base10 = log10(abs(number))
     return 1*(10**(floor(base10)))
+
+def mycorrelate2d(df, normalized=False):
+    # initialize cross correlation matrix with zeros
+    # https://stackoverflow.com/questions/54292947/basics-of-normalizing-cross-correlation-with-a-view-to-comparing-signals
+    ccm = np.zeros((df.shape[1], df.shape[1]))
+    for i in range(df.shape[1]):
+        outer_row = df[i][:]
+        for j in range(df.shape[1]):
+            inner_row = df[j][:]
+            if (not normalized):
+                x = np.correlate(inner_row, outer_row)
+            else:
+                a = (inner_row - np.mean(inner_row)) / (np.std(inner_row) * len(inner_row))
+                # print(a)
+                b = (outer_row - np.mean(outer_row)) / (np.std(outer_row))
+                # print(b)
+                x = np.correlate(a, b)
+            ccm[i][j] = x
+    return ccm
 #-----------------------------------------------------------------------------------------------------------------------
 # UNSCENTED KALMAN FILTER (from https://codingcorner.org/unscented-kalman-filter-ukf-best-explanation-with-python/)
 class UKF(object):
