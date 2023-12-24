@@ -98,6 +98,7 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
         binLow = neuvacTable[:, 0]
         binHigh = neuvacTable[:, 1]
         binCenters = 0.5 * (binLow + binHigh)
+    wavelengths = binCenters
 
     # Establish a dictionary for wavelength resolution:
     euv_data = {'short': binLow,
@@ -151,14 +152,14 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
 
     # Plotting irradiance data:
     # Make a directory to save things into, if it doens't already exist:
-    if mySource:
+    if source:
         titleStr = source+' ('+bins+' bins)'
         figName = source+'_'+bins+'_bins_'+dateStart+'-'+dateEnd+'.png'
         saveDir = figuresDirectory+source+'_'+bins+'_'+dateStart+'-'+dateEnd+'/'
     else:
         titleStr = bins
-        figName = source + '_' + dateStart + '-' + dateEnd + '.png'
-        saveDir = figuresDirectory + source + dateStart + '-' + dateEnd+'/'
+        figName =  bins+'_' + dateStart + '-' + dateEnd + '.png'
+        saveDir = figuresDirectory + bins + dateStart + '-' + dateEnd+'/'
     toolbox.openDir(saveDir)
 
     # 1: Image of the entire spectrum:
@@ -192,7 +193,11 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
 if __name__=="__main__":
     myDateStart = '2020-07-20' # Date on when St. Alphonsus Ligouri was consecrated a bishop.
     myDateEnd = '2020-08-01' # Date on when St. Alphonsus Ligouri died (and when he was canonized).
-    myBins = 'SOLOMON'
-    mySource = 'FISM2S'
-    getIrradiance(myDateStart, myDateEnd, myBins, source=mySource)
+    # times, binLow, binHigh, binCenters, irradiance = getIrradiance(myDateStart, myDateEnd, 'SOLOMON', source='SEE')
+    # times, binLowSOLOMON, binHighSOLOMON , binCentersSOLOMON , irradianceSOLOMON = getIrradiance(myDateStart, myDateEnd, 'SOLOMON', source='FISM2S')
+
+    # NEUVAC, FISM2, SEE:
+    times, binLow, binHigh, binCenters, irradianceNEUVAC = getIrradiance(myDateStart, myDateEnd, 'NEUVAC')
+    times, binLow, binHigh, binCenters, irradianceFISM2 = getIrradiance(myDateStart, myDateEnd, 'NEUVAC', source='FISM2')
+    times, binLow, binHigh, binCenters, irradianceFISM2 = getIrradiance(myDateStart, myDateEnd, 'NEUVAC', source='SEE')
 # -----------------------------------------------------------------------------------------------------------------------

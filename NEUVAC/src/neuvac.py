@@ -7,6 +7,7 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level imports:
 import numpy as np
+import os
 from scipy.optimize import curve_fit, minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta
@@ -14,8 +15,10 @@ from datetime import timedelta
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local imports:
+import tools.toolbox
 from tools.spectralAnalysis import spectralIrradiance
 from tools.toolbox import find_nearest
+from experiments import uncNeuvac
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -165,7 +168,20 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None):
             k += 1
     if bandLim: # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
         return euvFlux[:, 7:44]
-    return euvFlux, np.squeeze(euvIrradiance)
+
+    # Include uncertainties:
+    errorFile = '../../experiments/errorParams.pkl'
+    if os.path.isfile(errorFile) == True:
+        errorParams = tools.toolbox.loadPickle(errorFile)
+        neuvacIrr = np.squeeze(euvIrradiance)
+        neuvacUnc = []
+        for i in range(neuvacIrr.shape[1]):
+            neuvacUnc.append(uncNeuvac.linear(neuvacIrr[:, i], *errorParams[i]))
+        neuvacUncs = np.asarray(neuvacUnc).T
+
+        return euvFlux, np.squeeze(euvIrradiance), neuvacUncs
+    else:
+        return euvFlux, np.squeeze(euvIrradiance), 0
 
 def correlatedNEUVAC(meanSpectra, corrModels, f107):
     """
@@ -221,7 +237,7 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
         An optional argument specifying the label for the data the model is being constructed for. Default is None.
     :param constraint: bool
         An optional argument that if True, constrains the fitted function to yield nonnegative outputs.
-    :param neuvacTable: ndarray
+    :param fitParams: ndarray
         An array of coefficients with which to compute the irradiance in each bin.
     """
     # ENFORCING MODEL RESULTS TO BE NONZERO:
@@ -294,15 +310,15 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
         axs[2].set_title('Model Results')
         axs[2].legend(loc='best')
         # Ylims (always set to mean +/- 3 sigma):
-        meanIrr = np.nanmean(irrDataSubset[:, j])
-        if j+1 == 9 or j+1 == 10:
-            axs[0].set_ylim([0, 5*meanIrr])
-            axs[1].set_ylim([0, 5*meanIrr])
-            axs[2].set_ylim([-meanIrr, 5*meanIrr])
-        elif j+1 == 13:
-            axs[0].set_ylim([0, 2.2 * meanIrr])
-            axs[1].set_ylim([0, 2.2 * meanIrr])
-            axs[2].set_ylim([-meanIrr, 2.2 * meanIrr])
+        # meanIrr = np.nanmean(irrDataSubset[:, j])
+        # if j+1 == 9 or j+1 == 10:
+        #     axs[0].set_ylim([0, 5*meanIrr])
+        #     axs[1].set_ylim([0, 5*meanIrr])
+        #     axs[2].set_ylim([-meanIrr, 5*meanIrr])
+        # elif j+1 == 13:
+        #     axs[0].set_ylim([0, 2.2 * meanIrr])
+        #     axs[1].set_ylim([0, 2.2 * meanIrr])
+        #     axs[2].set_ylim([-meanIrr, 2.2 * meanIrr])
         # Appending:
         fitParams.append(fitResult0[0])
         # Saving the figure:
@@ -310,6 +326,7 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
             plt.savefig('Fitting/'+'NEUVAC_' + label.replace('/','-') + '_fit_'+str(wavelengths[j]).replace('.','_')+ '_A.png', dpi=300)
         else:
             plt.savefig('Fitting/'+'NEUVAC_fit_'+str(wavelengths[j]).replace(',','_')+ '_A.png', dpi=300)
+    fitParams = np.asarray(fitParams)
     return fitParams
 #-----------------------------------------------------------------------------------------------------------------------
 

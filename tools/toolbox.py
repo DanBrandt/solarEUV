@@ -19,6 +19,8 @@ from tqdm import tqdm
 import scipy.integrate as integ
 from scipy import interpolate
 from urllib.request import urlretrieve
+from math import log10, floor
+from scipy.interpolate.rbf import Rbf
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions
 def openDir(directory):
@@ -259,32 +261,35 @@ def rollingAverage(myData, window_length=1, impute_edges=True):
     """
     myDataframe = pd.DataFrame(data=myData, columns=['Var'])
     myDataframe['Rolling'] = myDataframe['Var'].rolling(window=window_length, center=True).mean()
+    firstValidIndex = myDataframe['Rolling'].first_valid_index()
+    lastValidIndex = myDataframe['Rolling'].last_valid_index()
     if impute_edges == True:
         # Sample x-axis:
-        sampleXaxis = np.linspace(0, window_length, window_length)
-        middleIndex = int(0.5*window_length)
+        windowSize = len(myDataframe) - lastValidIndex
+        sampleXaxis = np.linspace(0, windowSize, windowSize)
+        middleIndex = int(0.5*windowSize)
         # Use cubic interpolation to fill the gaps on the edges:
         # leadingEdgeStartingVal = myDataframe['Var'][0]
-        goodLeadingVals = myDataframe['Var'][:window_length][myDataframe['Var'][:window_length] > 0]
+        # goodLeadingVals = myDataframe['Var'][:window_length][myDataframe['Var'][:window_length] > 0]
         # leadingEdgeStartingVal = np.percentile(goodLeadingVals.values, 25)
-        leadingEdgeStartingVal = np.min(goodLeadingVals.values)
-        leadingEdgeMiddleVal = np.mean([leadingEdgeStartingVal, myDataframe['Var'][:window_length].values[-1]]) # myDataframe['Var'][:window_length].mean()
-        leadingEndingVal = myDataframe['Var'][:window_length].values[-1]
+        leadingEdgeStartingVal = myDataframe['Var'][:window_length].values[0]
+        leadingEndingVal = myDataframe['Rolling'][firstValidIndex]
+        leadingEdgeMiddleVal = np.mean([leadingEdgeStartingVal, leadingEndingVal])
         leadingSpline = CubicSpline([sampleXaxis[0], sampleXaxis[middleIndex], sampleXaxis[-1]],
                                     [leadingEdgeStartingVal, leadingEdgeMiddleVal, leadingEndingVal])
         leadingImputedValues = leadingSpline(sampleXaxis)
         # plt.figure(); plt.plot(sampleXaxis, myDataframe['Var'][:window_length].values); plt.plot(sampleXaxis, leadingImputedValues); plt.show()
 
-        trailingEdgeStartingVal = myDataframe['Var'][-window_length:].values[0]
-        trailingEdgeMiddleVal = myDataframe['Var'][-window_length:].mean()
+        trailingEdgeStartingVal = myDataframe['Rolling'][lastValidIndex]
         trailingEndingVal = myDataframe['Var'].values[-1]
+        trailingEdgeMiddleVal = np.mean([trailingEdgeStartingVal, trailingEndingVal])
         trailingSpline = CubicSpline([sampleXaxis[0], sampleXaxis[middleIndex], sampleXaxis[-1]],
                                     [trailingEdgeStartingVal, trailingEdgeMiddleVal, trailingEndingVal])
         trailingImputedValues = trailingSpline(sampleXaxis)
         # plt.figure(); plt.plot(sampleXaxis, myDataframe['Var'][-window_length:].values); plt.plot(sampleXaxis, trailingImputedValues); plt.show()
 
-        myDataframe['Rolling'][:window_length] = leadingImputedValues
-        myDataframe['Rolling'][-window_length:] = trailingImputedValues
+        myDataframe['Rolling'][:windowSize] = leadingImputedValues
+        myDataframe['Rolling'][-windowSize:] = trailingImputedValues
     else:
         myDataframe['Rolling'][:window_length] = myDataframe['Var'][:window_length]
         myDataframe['Rolling'][-window_length:] = myDataframe['Var'][-window_length:]
@@ -671,7 +676,7 @@ def stringList(myList):
     myStr = " ".join(strList)
     return myStr
 
-def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True):
+def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True, unc=False):
     """
     Rebin 2D [irradiance/flux] data, where each row is a complete spectrum, and each column is a specific wavelength
     bin. Do the rebinning according to a desired resolution, and restrict the returned information to wavelength
@@ -692,6 +697,9 @@ def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True):
         accurate, due to the use of integrals. Default is None.
     :param zero: bool
         Controls whether singular lines are set to a value of zero after they are extracted. Default is True.
+    :param unc: bool
+        Indicates whether or not uncertainties are being rebinned. If so, they will be combined in each bin using an
+        interpolation method.
     :return newWaves: ndarray
         The centers of the wavelength bins corresponding to the rebinned data.
     :return newData: ndarray
@@ -715,123 +723,480 @@ def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True):
             wavelengths = np.linspace(wavelengths[0], wavelengths[-1], factor*len(wavelengths))
             data = f(wavelengths, obs)
 
-    # Loop through each row the new data array, and fill it in with the rebinned data:
-    if type(resolution) is not dict:
-        # TODO: The code for this if cell is VERY SLOW when processing large arrays. It needs to be sped up.
-        # CONDITION FOR A SINGLE WAVELENGTH RESOLUTION.
-        # Compute the wavelength centers for the new bins:
-        if limits is not None:
-            newWaves = np.arange(limits[0], limits[-1] + resolution, resolution)
-        else:
-            step = np.nanmean(np.diff(wavelengths))
-            newWaves = np.arange(wavelengths[0], wavelengths[-1] + step, step)
-        # Instantiate the new data array:
+    # For uncertainty quantification, interpolate the grid of uncertainty values:
+    if unc == True:
+        # d_vals = data.flatten()
+        # x_vals = np.repeat(wavelengths, int(d_vals.shape[0] / wavelengths.shape[0]))
+        # numrows = data.shape[0]
+        # y_vals = np.asarray([np.repeat(element, data.shape[1]) for element in np.linspace(0, numrows-1, numrows)]).flatten()
+        # rbf_fun = Rbf(x_vals, y_vals, d_vals)
+        newWaves = wavelengths * 10
+        mids = 0.5 * (resolution['long'] + resolution['short'])
         if len(data.shape) < 2:
-            newData = np.zeros((1, newWaves.shape[0]))
+            f = interpolate.interp1d(newWaves, data, kind='linear')
+            newData = f(mids)
         else:
-            newData = np.zeros((data.shape[0], newWaves.shape[0]))
-        # Loop over each spectrum (each individual observation):
-        for i in tqdm(range(newData.shape[0])):
-            # Loop through the wavelength intervals:
-            currentSpectrum = np.zeros_like(newWaves)
-            for j in range(newWaves.shape[0]-1):
-                # Get the indices of elements in each wavelength bin - ASSUME that the original data are associated with
-                # bin centers - apply an offset equal to the respective interval of the bin:
-                binInds = np.where((wavelengths > (newWaves[j] - resolution)) & (wavelengths < (newWaves[j] + resolution)))[0]
-                # Gather the elements in the bin and multiply them by the respective native bin width:
-                try:
-                    binElements = data[i, binInds]
-                except:
-                    binElements = data[binInds]
-
-                binWidths = nativeResolution[binInds]
-                binProducts = [a*b for a,b in zip(binElements, binWidths)]
-                # Take the sum:
-                binSum = np.sum(binProducts)
-
-                # Integrate the bin:
-                binVal = integ.trapz(binElements, wavelengths[binInds])
-                # binVal = binSum/(2*resolution)
-
-                # Add the value to the current spectrum:
-                currentSpectrum[j] = binVal
-
-            # Once a single spectrum is obtained, add it to the new data array:
-            newData[i, :] = currentSpectrum
+            data[np.isnan(data)] = 0
+            obs = np.linspace(0, data.shape[0], data.shape[0])
+            f = interpolate.interp2d(newWaves, obs, data, kind='linear')
+            newData = f(mids, obs)
+        print()
     else:
-        # CONDITION FOR A BINNING WITH UNIQUE BIN WIDTHS.
-        shorts = resolution['short']/10.
-        longs = resolution['long']/10.
-        newWaves = 0.5*(shorts + longs)
+        # Loop through each row the new data array, and fill it in with the rebinned data:
+        if type(resolution) is not dict:
+            # TODO: The code for this if cell is VERY SLOW when processing large arrays. It needs to be sped up.
+            # CONDITION FOR A SINGLE WAVELENGTH RESOLUTION.
+            # Compute the wavelength centers for the new bins:
+            if limits is not None:
+                newWaves = np.arange(limits[0], limits[-1] + resolution, resolution)
+            else:
+                step = np.nanmean(np.diff(wavelengths))
+                newWaves = np.arange(wavelengths[0], wavelengths[-1] + step, step)
+            # Instantiate the new data array:
+            if len(data.shape) < 2:
+                newData = np.zeros((1, newWaves.shape[0]))
+            else:
+                newData = np.zeros((data.shape[0], newWaves.shape[0]))
+            # Loop over each spectrum (each individual observation):
+            for i in tqdm(range(newData.shape[0])):
+                # Loop through the wavelength intervals:
+                currentSpectrum = np.zeros_like(newWaves)
+                for j in range(newWaves.shape[0]-1):
+                    # Get the indices of elements in each wavelength bin - ASSUME that the original data are associated with
+                    # bin centers - apply an offset equal to the respective interval of the bin:
+                    binInds = np.where((wavelengths > (newWaves[j] - resolution)) & (wavelengths < (newWaves[j] + resolution)))[0]
+                    # Gather the elements in the bin and multiply them by the respective native bin width:
+                    try:
+                        binElements = data[i, binInds]
+                    except:
+                        binElements = data[binInds]
 
-        # Instantiate the new data array:
-        if len(data.shape) < 2:
-            newData = np.zeros((1, newWaves.shape[0]))
+                    binWidths = nativeResolution[binInds]
+                    binProducts = [a*b for a,b in zip(binElements, binWidths)]
+                    # Take the sum:
+                    binSum = np.sum(binProducts)
+
+                    # Integrate the bin:
+                    binVal = integ.trapz(binElements, wavelengths[binInds])
+                    # binVal = binSum/(2*resolution)
+
+                    # Add the value to the current spectrum:
+                    currentSpectrum[j] = binVal
+
+                # Once a single spectrum is obtained, add it to the new data array:
+                newData[i, :] = currentSpectrum
         else:
-            newData = np.zeros((data.shape[0], newWaves.shape[0]))
+            # CONDITION FOR A BINNING WITH UNIQUE BIN WIDTHS.
+            shorts = resolution['short']/10.
+            longs = resolution['long']/10.
+            newWaves = 0.5*(shorts + longs)
 
-        # First go through all of the wavelengths that are singular
-        myData = data
-        for iWave, short in enumerate(shorts):
-            long = longs[iWave]
-            if (long == short):
-                i = np.argmin(np.abs(wavelengths - short))
-                i2 = np.argmin(np.abs(nativeWavelengths - short))
-                try:
-                    newData[:, iWave] = myData[:, i] * (nativeWavelengths[i2 + 1] - nativeWavelengths[i2])
-                except:
-                    newData[:, iWave] = myData[i] * (nativeWavelengths[i2 + 1] - nativeWavelengths[i2])
-                if zero == True:
-                    # Zero out bin so we don't double count it.
+            # Instantiate the new data array:
+            if len(data.shape) < 2:
+                newData = np.zeros((1, newWaves.shape[0]))
+            else:
+                newData = np.zeros((data.shape[0], newWaves.shape[0]))
+
+            # First go through all of the wavelengths that are singular
+            myData = data
+            for iWave, short in enumerate(shorts):
+                long = longs[iWave]
+                if (long == short):
+                    i = np.argmin(np.abs(wavelengths - short))
+                    i2 = np.argmin(np.abs(nativeWavelengths - short))
                     try:
-                        myData[:, i] = np.zeros_like(myData[:, i])
+                        newData[:, iWave] = myData[:, i] * (nativeWavelengths[i2 + 1] - nativeWavelengths[i2])
                     except:
-                        myData[i] = 0.0
+                        newData[:, iWave] = myData[i] * (nativeWavelengths[i2 + 1] - nativeWavelengths[i2])
+                    if zero == True:
+                        # Zero out bin so we don't double count it.
+                        try:
+                            myData[:, i] = np.zeros_like(myData[:, i])
+                        except:
+                            myData[i] = 0.0
 
-        # Then go through the ranges
-        for iWave, short in enumerate(shorts):
-            long = longs[iWave]
-            if (long != short):
-                d1 = np.abs(wavelengths - short)
-                iStart = np.argmin(d1)
-                d2 = np.abs(wavelengths - long)
-                iEnd = np.argmin(d2)
-                wave_int = 0.0
-                # For wavelengths at or below 0.2 nm, just compute the sum:
-                if long <= 0.2:
-                    for i in range(iStart + 1, iEnd + 1):
-                        newData[:, iWave] += myData[:, i] * \
-                                             (wavelengths[i + 1] - wavelengths[i])
-                        wave_int += (wavelengths[i + 1] - wavelengths[i])
-                else:
-                    try:
-                        newData[:, iWave] = integ.trapz(myData[:, iStart:iEnd], wavelengths[iStart:iEnd], axis=1)
-                    except:
-                        # Resample the wavelength data:
-                        newData[:, iWave] = integ.trapz(myData[iStart:iEnd], wavelengths[iStart:iEnd])
+            # Then go through the ranges
+            for iWave, short in enumerate(shorts):
+                long = longs[iWave]
+                if (long != short):
+                    d1 = np.abs(wavelengths - short)
+                    iStart = np.argmin(d1)
+                    d2 = np.abs(wavelengths - long)
+                    iEnd = np.argmin(d2)
+                    wave_int = 0.0
+                    # For wavelengths at or below 0.2 nm, just compute the sum:
+                    if long <= 0.2:
+                        for i in range(iStart + 1, iEnd + 1):
+                            newData[:, iWave] += myData[:, i] * \
+                                                 (wavelengths[i + 1] - wavelengths[i])
+                            wave_int += (wavelengths[i + 1] - wavelengths[i])
+                    else:
+                        try:
+                            newData[:, iWave] = integ.trapz(myData[:, iStart:iEnd], wavelengths[iStart:iEnd], axis=1)
+                        except:
+                            newData[:, iWave] = integ.trapz(myData[iStart:iEnd], wavelengths[iStart:iEnd])
 
-                    # # Plotting for a sanity check:
-                    # plt.figure();
-                    # plt.plot(wavelengths[iStart:iEnd], myData[iStart:iEnd], marker='o')
-                    # plt.scatter(newWaves[iWave], newData[:, iWave])
+                        # # Plotting for a sanity check:
+                        # plt.figure();
+                        # plt.plot(wavelengths[iStart:iEnd], myData[iStart:iEnd], marker='o')
+                        # plt.scatter(newWaves[iWave], newData[:, iWave])
 
-
-                # for i in range(iStart + 1, iEnd + 1):
-                #     binWidths = nativeResolution[iStart + 1:iEnd + 1]
-                #     try:
-                #         binProducts = [a * b for a, b in zip(myData[:, i], binWidths)]
-                #         binSum = np.sum(binProducts)
-                #         newData[:, iWave] = binSum / (iEnd - iStart)
-                #         # newData[:, iWave] += myData[:, i]  / (iEnd - iStart) # * (wavelengths[i + 1] - wavelengths[i])
-                #     except:
-                #         binProducts = [a * b for a, b in zip([myData[i]], binWidths)]
-                #         binSum = np.sum(binProducts)
-                #         newData[:, iWave] = binSum / (iEnd - iStart)
-                #         # newData[:, iWave] += (myData[i] * () )/ (iEnd - iStart)
-                #     wave_int += (wavelengths[i + 1] - wavelengths[i])
+                    # for i in range(iStart + 1, iEnd + 1):
+                    #     binWidths = nativeResolution[iStart + 1:iEnd + 1]
+                    #     try:
+                    #         binProducts = [a * b for a, b in zip(myData[:, i], binWidths)]
+                    #         binSum = np.sum(binProducts)
+                    #         newData[:, iWave] = binSum / (iEnd - iStart)
+                    #         # newData[:, iWave] += myData[:, i]  / (iEnd - iStart) # * (wavelengths[i + 1] - wavelengths[i])
+                    #     except:
+                    #         binProducts = [a * b for a, b in zip([myData[i]], binWidths)]
+                    #         binSum = np.sum(binProducts)
+                    #         newData[:, iWave] = binSum / (iEnd - iStart)
+                    #         # newData[:, iWave] += (myData[i] * () )/ (iEnd - iStart)
+                    #     wave_int += (wavelengths[i + 1] - wavelengths[i])
 
     # If only a single spectrum was generated, remove the singleton dimension:
     if newData.shape[0] == 1:
         newData = np.squeeze(newData)
 
     return newWaves, newData
+
+def forecast(y, coefs, trend_coefs, steps, exog=None):
+    """
+    Produce linear minimum MSE forecast [taken from statsmodels.tsa.vector_ar.var_model.py]
+
+    Parameters
+    ----------
+    y : ndarray (k_ar x neqs)
+    coefs : ndarray (k_ar x neqs x neqs)
+    trend_coefs : ndarray (1 x neqs) or (neqs)
+    steps : int
+    exog : ndarray (trend_coefs.shape[1] x neqs)
+
+    Returns
+    -------
+    forecasts : ndarray (steps x neqs)
+
+    Notes
+    -----
+    Lütkepohl p. 37
+    """
+    p = len(coefs)
+    k = len(coefs[0])
+    if y.shape[0] < p:
+        raise ValueError(
+            f"y must by have at least order ({p}) observations. "
+            f"Got {y.shape[0]}."
+        )
+    # initial value
+    forcs = np.zeros((steps, k))
+    if exog is not None and trend_coefs is not None:
+        forcs += np.dot(exog, trend_coefs)
+    # to make existing code (with trend_coefs=intercept and without exog) work:
+    elif exog is None and trend_coefs is not None:
+        forcs += trend_coefs
+
+    # h=0 forecast should be latest observation
+    # forcs[0] = y[-1]
+
+    # make indices easier to think about
+    for h in range(1, steps + 1):
+        # y_t(h) = intercept + sum_1^p A_i y_t_(h-i)
+        f = forcs[h - 1]
+        for i in range(1, p + 1):
+            # slightly hackish
+            if h - i <= 0:
+                # e.g. when h=1, h-1 = 0, which is y[-1]
+                prior_y = y[h - i - 1]
+            else:
+                # e.g. when h=2, h-1=1, which is forcs[0]
+                prior_y = forcs[h - i - 1]
+
+            # i=1 is coefs[0]
+            f = f + np.dot(coefs[i - 1], prior_y)
+
+        forcs[h - 1] = f
+
+    return forcs
+
+def forecastInversion(forecastData, history, lastDiff, trend, window):
+    """
+    Designed to operate on the output of the statsmodels VAR package. Takes a forecast generated by a VAR model, and
+    for each sample in the forecast, inverts the forecast to obtain the actual prediction. Essentially, this function
+    takes forecasts generated for non-stationary data that has been transformed to stationary data, and inverts it
+    in order to give the non-stationary forecat result.
+    :param forecastData: ndarray
+        An n x m array of forecasts, where n is the number of forecasts and m is the variable.
+    :param history: ndarray
+        A 2D array of training data which was used to generate the forecastData.
+    :param lastDiff, ndarray
+        A 1 x m array of the most recent differences for all of the variables.
+    :param trend: ndarray
+        An 2D array of historical trend data for the non-stationary version of the data.
+    :param window: int
+        The window over which the historical trend was calculated (assumes some sort of centered average was done).
+    :return invertedForecastDataNew: ndarray
+        The inverted forecasted data.
+    """
+    data_and_preds_combined = history
+    invertedForecastData = np.zeros_like(forecastData)
+    # Loop over the number of samples:
+    firstInversions = []
+    for i in range(forecastData.shape[0]):
+        # Undoing the differencing:
+        if i == 0:
+            firstInv = np.add(forecastData[i, :], lastDiff)
+        elif i == 1:
+            currentDiff = firstInversions[-1] - firstInv
+            firstInv = np.add(forecastData[i, :], currentDiff)
+        else:
+            currentDiff = firstInversions[-1] - firstInversions[-2]
+            firstInv = np.add(forecastData[i, :], currentDiff)
+        firstInversions.append(firstInv)
+
+        # Adding back on the trend
+        if i == 0:
+            secondInv = np.multiply(firstInv, trend[-1, :])
+        else:
+            currentTrend = np.mean(data_and_preds_combined[-window:], axis=0)
+            secondInv = np.multiply(firstInv, currentTrend)
+        # Enforce positive definiteness:
+        secondInv[secondInv < 0] = 0
+        invertedForecastData[i, :] = secondInv
+        data_and_preds_combined = np.vstack([data_and_preds_combined, invertedForecastData])
+
+    base = history[-1, :]
+    offset = np.subtract(invertedForecastData[0, :], base)
+    invertedForecastDataNew = invertedForecastData - offset
+
+    # firstX = np.linspace(0, 26617, 26618)
+    # secondX = np.linspace(26617, 26621, 5)
+    # plt.figure()
+    # plt.plot(firstX, history[:, 5])
+    # plt.plot(secondX, invertedForecastDataNew[:, 5])
+
+    return invertedForecastDataNew
+
+def find_exp(number) -> int:
+    base10 = log10(abs(number))
+    return 1*(10**(floor(base10)))
+#-----------------------------------------------------------------------------------------------------------------------
+# UNSCENTED KALMAN FILTER (from https://codingcorner.org/unscented-kalman-filter-ukf-best-explanation-with-python/)
+class UKF(object):
+    def __init__(self, dim_x, dim_z, Q, R, kappa=0.0):
+
+        '''
+        UKF class constructor
+        inputs:
+            dim_x : state vector x dimension
+            dim_z : measurement vector z dimension
+
+        - step 1: setting dimensions
+        - step 2: setting number of sigma points to be generated
+        - step 3: setting scaling parameters
+        - step 4: calculate scaling coefficient for selecting sigma points
+        - step 5: calculate weights
+        '''
+
+        # setting dimensions
+        self.dim_x = dim_x  # state dimension
+        self.dim_z = dim_z  # measurement dimension
+        self.dim_v = np.shape(Q)[0]
+        self.dim_n = np.shape(R)[0]
+        self.dim_a = self.dim_x + self.dim_v + self.dim_n  # assuming noise dimension is same as x dimension
+
+        # setting number of sigma points to be generated
+        self.n_sigma = (2 * self.dim_a) + 1
+
+        # setting scaling parameters
+        self.kappa = 3 - self.dim_a  # kappa
+        self.alpha = 0.001
+        self.beta = 2.0
+
+        alpha_2 = self.alpha ** 2
+        self.lambda_ = alpha_2 * (self.dim_a + self.kappa) - self.dim_a
+
+        # setting scale coefficient for selecting sigma points
+        # self.sigma_scale = np.sqrt(self.dim_a + self.lambda_)
+        self.sigma_scale = np.sqrt(self.dim_a + self.kappa)
+
+        # calculate unscented weights
+        # self.W0m = self.W0c = self.lambda_ / (self.dim_a + self.lambda_)
+        # self.W0c = self.W0c + (1.0 - alpha_2 + self.beta)
+        # self.Wi = 0.5 / (self.dim_a + self.lambda_)
+
+        self.W0 = self.kappa / (self.dim_a + self.kappa)
+        self.Wi = 0.5 / (self.dim_a + self.kappa)
+
+        # initializing augmented state x_a and augmented covariance P_a
+        self.x_a = np.zeros((self.dim_a,))
+        self.P_a = np.zeros((self.dim_a, self.dim_a))
+
+        self.idx1, self.idx2 = self.dim_x, self.dim_x + self.dim_v
+
+        self.P_a[self.idx1:self.idx2, self.idx1:self.idx2] = Q
+        self.P_a[self.idx2:, self.idx2:] = R
+
+        print(f'P_a = \n{self.P_a}\n')
+
+    def predict(self, f, x, P):
+        self.x_a[:self.dim_x] = x
+        self.P_a[:self.dim_x, :self.dim_x] = P
+
+        xa_sigmas = self.sigma_points(self.x_a, self.P_a)
+
+        xx_sigmas = xa_sigmas[:self.dim_x, :]
+        xv_sigmas = xa_sigmas[self.idx1:self.idx2, :]
+
+        y_sigmas = np.zeros((self.dim_x, self.n_sigma))
+        for i in range(self.n_sigma):
+            y_sigmas[:, i] = f(xx_sigmas[:, i], xv_sigmas[:, i])
+
+        y, Pyy = self.calculate_mean_and_covariance(y_sigmas)
+
+        self.x_a[:self.dim_x] = y
+        self.P_a[:self.dim_x, :self.dim_x] = Pyy
+
+        return y, Pyy, xx_sigmas
+
+    def correct(self, h, x, P, z):
+        self.x_a[:self.dim_x] = x
+        self.P_a[:self.dim_x, :self.dim_x] = P
+
+        xa_sigmas = self.sigma_points(self.x_a, self.P_a)
+
+        xx_sigmas = xa_sigmas[:self.dim_x, :]
+        xn_sigmas = xa_sigmas[self.idx2:, :]
+
+        y_sigmas = np.zeros((self.dim_z, self.n_sigma))
+        for i in range(self.n_sigma):
+            y_sigmas[:, i] = h(xx_sigmas[:, i], xn_sigmas[:, i])
+
+        y, Pyy = self.calculate_mean_and_covariance(y_sigmas)
+
+        Pxy = self.calculate_cross_correlation(x, xx_sigmas, y, y_sigmas)
+
+        K = Pxy @ np.linalg.pinv(Pyy)
+
+        x = x + (K @ (z - y))
+        P = P - (K @ Pyy @ K.T)
+
+        return x, P, xx_sigmas
+
+    def sigma_points(self, x, P):
+
+        '''
+        generating sigma points matrix x_sigma given mean 'x' and covariance 'P'
+        '''
+
+        nx = np.shape(x)[0]
+
+        x_sigma = np.zeros((nx, self.n_sigma))
+        x_sigma[:, 0] = x
+
+        S = np.linalg.cholesky(P)
+
+        for i in range(nx):
+            x_sigma[:, i + 1] = x + (self.sigma_scale * S[:, i])
+            x_sigma[:, i + nx + 1] = x - (self.sigma_scale * S[:, i])
+
+        return x_sigma
+
+    def calculate_mean_and_covariance(self, y_sigmas):
+        ydim = np.shape(y_sigmas)[0]
+
+        # mean calculation
+        y = self.W0 * y_sigmas[:, 0]
+        for i in range(1, self.n_sigma):
+            y += self.Wi * y_sigmas[:, i]
+
+        # covariance calculation
+        d = (y_sigmas[:, 0] - y).reshape([-1, 1])
+        Pyy = self.W0 * (d @ d.T)
+        for i in range(1, self.n_sigma):
+            d = (y_sigmas[:, i] - y).reshape([-1, 1])
+            Pyy += self.Wi * (d @ d.T)
+
+        return y, Pyy
+
+    def calculate_cross_correlation(self, x, x_sigmas, y, y_sigmas):
+        xdim = np.shape(x)[0]
+        ydim = np.shape(y)[0]
+
+        n_sigmas = np.shape(x_sigmas)[1]
+
+        dx = (x_sigmas[:, 0] - x).reshape([-1, 1])
+        dy = (y_sigmas[:, 0] - y).reshape([-1, 1])
+        Pxy = self.W0 * (dx @ dy.T)
+        for i in range(1, n_sigmas):
+            dx = (x_sigmas[:, i] - x).reshape([-1, 1])
+            dy = (y_sigmas[:, i] - y).reshape([-1, 1])
+            Pxy += self.Wi * (dx @ dy.T)
+
+        return Pxy
+
+#-----------------------------------------------------------------------------------------------------------------------
+
+
+# def VARModel(data, lag, trend_window):
+#     """
+#     Use the VAR method from statsmodels to fit a model to multidimensional data.
+#     :param data: ndarray
+#         An array of 2D data.
+#     :param lag: int
+#         The number of lags with which to compute the VAR model.
+#     :param trend_window: int
+#         The size over which to compute the trend.
+#     :return results: ndarray
+#         An array of results. By element:
+#         0 - The lagged data used to compute the model
+#         1 - The coefficients for the model
+#         2 - The exogeneous coefficients [for the lag component]
+#         3 - The element of the data immediately preceding the current timestep
+#         4 - The trended data
+#     """
+#     trend = np.zeros_like(data)
+#     for i in range(trend.shape[1]):
+#         averaged = rollingAverage(data[:, i], window_length=int(trend_window), impute_edges=True)
+#         trend[:, i] = averaged
+#     # Divide the data by the 12-month averaged data to remove the trend:
+#     detrended = np.divide(data, trend)
+#     # Employ differencing to enforce stationarity:
+#     differencedDetrended = np.diff(detrended, axis=0)
+#     model = VAR(differencedDetrended)
+#     # 2: Fit a model with a lag of 27 days (per the suggestion of Warren, et al. 2017: https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2017SW001637)
+#     modelResults = model.fit(lag)
+#     results = [
+#         data[-lag:, :],
+#         modelResults.coefs,
+#         modelResults.coefs_exog.T,
+#         differencedDetrended,
+#         trend,
+#     ]
+#     return results
+
+# def VARForecast(lagData, coefs, coefs_exog, steps, trainingData, precedingDiff, trendData, window):
+#     """
+#     Perform MANUAL forecasting, using results from the statsmodels VAR method.
+#     :param lagData: ndarray
+#         Data used to compute the VAR model.
+#     :param coefs: ndarray
+#         Coefficients corresponding to the VAR model.
+#     :param coefs_exog: ndarray
+#         The exogeneous coefficients [for the lag component].
+#     :param steps: int
+#         The number of steps to take in the forecast.
+#     :param trainingData: ndarray
+#         The entire training data set from which the lagData was extracted.
+#     :param precedingDiff: ndarray
+#         The element of the data immediately preceding the current timestep
+#     :param trendData:
+#         The trended data
+#     :param window:
+#         The size over which to compute the trend.
+#     :param invertedForecastResults:
+#         The manually-forecasted results.
+#     """
+#     forecastResults = forecast(lagData, coefs, coefs_exog, steps)
+#     invertedForecastResults = forecastInversion(forecastResults, trainingData, precedingDiff[-1, :], trendData, window)
+#     return invertedForecastResults
