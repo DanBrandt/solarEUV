@@ -164,12 +164,11 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None):
                 if irrRes < 0:
                     irrRes = 0
                 euvIrradiance[i, k] = irrRes
-                # TODO: Add code to compute the EUV flux as well.
             k += 1
     if bandLim: # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
         return euvFlux[:, 7:44]
 
-    # Include uncertainties:
+    # TODO: Include uncertainties (revise the code below):
     errorFile = '../../experiments/errorParams.pkl'
     if os.path.isfile(errorFile) == True:
         errorParams = tools.toolbox.loadPickle(errorFile)
@@ -183,40 +182,40 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None):
     else:
         return euvFlux, np.squeeze(euvIrradiance), 0
 
-def correlatedNEUVAC(meanSpectra, corrModels, f107):
-    """
-    From the mean NEUVAC EUV Spectra, and values of F107 and F107A, compute the resulting perturbed spectrum with
-    associated error bars related to the statistical properties of covariance/correlation between the wavelength bands.
-    :param meanSpectra: ndarray
-        The mean NEUVAC spectrum.
-    :param corrModels: list
-        A list of poly1d objects that capture correlated noise in NEUVAC with respect to F10.7.
-    :param f107: ndarray, int, or float
-        Values of F10.7.
-    :param f107a: ndarray, int, or float
-        Values of 81-day average F10.7.
-    :param euvFluxCorr: list
-        A list containing the results in two elements: Both are nxm ndarray where n is the number of EUV irradiance
-        values and m is the number of wavelength bands, with correlated noise added in. The first element is the upper
-        result and the second element is the lower result.
-    """
-    if type(f107) != np.ndarray:
-        f107 = np.asarray([f107])
-        # f107a = np.asarray([f107a])
-    # Loop through the samples and compute the results:
-    upperResults = []
-    lowerResults = []
-    for i in range(len(f107)):
-        # Add in the correlated noise:
-        meanSpectraWithNoiseUpper = []
-        meanSpectraWithNoiseLower = []
-        for j in range(len(meanSpectra)):
-            meanSpectraWithNoiseUpper.append(corrModels[j](f107[i])) # meanSpectra[j] + corrModels[j](f107[i])
-            meanSpectraWithNoiseLower.append(corrModels[j](f107[i])) # meanSpectra[j] - corrModels[j](f107[i])
-        upperResults.append(meanSpectraWithNoiseUpper)
-        lowerResults.append(meanSpectraWithNoiseLower)
-    euvFluxCorr = np.squeeze(np.asarray([lowerResults, upperResults]))
-    return euvFluxCorr
+# def correlatedNEUVAC(meanSpectra, corrModels, f107):
+#     """
+#     From the mean NEUVAC EUV Spectra, and values of F107 and F107A, compute the resulting perturbed spectrum with
+#     associated error bars related to the statistical properties of covariance/correlation between the wavelength bands.
+#     :param meanSpectra: ndarray
+#         The mean NEUVAC spectrum.
+#     :param corrModels: list
+#         A list of poly1d objects that capture correlated noise in NEUVAC with respect to F10.7.
+#     :param f107: ndarray, int, or float
+#         Values of F10.7.
+#     :param f107a: ndarray, int, or float
+#         Values of 81-day average F10.7.
+#     :param euvFluxCorr: list
+#         A list containing the results in two elements: Both are nxm ndarray where n is the number of EUV irradiance
+#         values and m is the number of wavelength bands, with correlated noise added in. The first element is the upper
+#         result and the second element is the lower result.
+#     """
+#     if type(f107) != np.ndarray:
+#         f107 = np.asarray([f107])
+#         # f107a = np.asarray([f107a])
+#     # Loop through the samples and compute the results:
+#     upperResults = []
+#     lowerResults = []
+#     for i in range(len(f107)):
+#         # Add in the correlated noise:
+#         meanSpectraWithNoiseUpper = []
+#         meanSpectraWithNoiseLower = []
+#         for j in range(len(meanSpectra)):
+#             meanSpectraWithNoiseUpper.append(corrModels[j](f107[i])) # meanSpectra[j] + corrModels[j](f107[i])
+#             meanSpectraWithNoiseLower.append(corrModels[j](f107[i])) # meanSpectra[j] - corrModels[j](f107[i])
+#         upperResults.append(meanSpectraWithNoiseUpper)
+#         lowerResults.append(meanSpectraWithNoiseLower)
+#     euvFluxCorr = np.squeeze(np.asarray([lowerResults, upperResults]))
+#     return euvFluxCorr
 
 def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=False):
     """

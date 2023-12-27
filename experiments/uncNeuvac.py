@@ -254,4 +254,7 @@ if __name__=="__main__":
     # plt.imshow(corMat.T, aspect='auto')
     toolbox.savePickle(corMat, 'corMat.pkl')
 
+    # Use the covariance matrix to generate uncertainty estimates:
+    meanIrradiances = np.nanmean(neuvacIrr, axis=0)
+
     sys.exit(0)
