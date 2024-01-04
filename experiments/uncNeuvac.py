@@ -66,8 +66,10 @@ if __name__=="__main__":
     plt.plot(np.linspace(0, len(F107A) - 1, len(F107A)), F107A, 'g-')
 
     # Generate NEUVAC data:
-    neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
-
+    neuvacFlux, neuvacIrr, perturbedNeuvacFlux, perturbedNeuvacIrr = neuvac.neuvacEUV(F107, F107A,
+                                                                                      tableFile=neuvac_tableFile,
+                                                                                      statsFiles=['corMat.pkl',
+                                                                                                  'sigma_NEUVAC.pkl'])
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
@@ -190,13 +192,16 @@ if __name__=="__main__":
     #     plt.plot(np.linspace(0, 26, 27), x_state[-lag_order:, i], color='b')
     #     plt.plot(np.linspace(26, 31, 5), test[:, i], color='b')
     #     plt.plot(np.linspace(26, 31, 5), fcst[:, i], color='c', linestyle='--')
-    #-------------------------------------------------------------------------------------------------------------------
+    # ------------------------------------------------------------------------------------------------------------------
+    # UNCERTAINTY ANALYSIS
+
     # Harmonize the times for NEUVAC and FISM2:
     correspondingIndsFISM2 = np.where((myIrrTimesFISM2 >= times[0]) & (myIrrTimesFISM2 <= times[-1]))[0]
     correspondingIrrTimesFISM2 = myIrrTimesFISM2[correspondingIndsFISM2]
     correspondingIrrFISM2 = rebinnedIrrDataFISM2[correspondingIndsFISM2, :]
 
-    # Uncertainty analysis: Quantify uncertainties by comparison between NEUVAC outputs and FISM2 outputs:
+    # ------------------------------------------------------------------------------------------------------------------
+    # 1: Obtain residuals between NEUVAC and FISM2:
     pearsons_R = []
     errorParams = []
     i = 0
@@ -224,37 +229,43 @@ if __name__=="__main__":
         fig.suptitle('Uncertainty Analysis: Band '+str(band+1))
         plt.tight_layout()
         plt.savefig(figures_folder+'/Uncertainty_Analysis_Band_'+str(i+1)+'.png', dpi=100)
-        # r_sqs.append(r_sq)
         i += 1
 
-    # Apply the uncertainty quantification to the actual bands:
+    # Collect the uncertainties so that error bars can be made.
     neuvacUnc = []
     for i in range(neuvacIrr.shape[1]):
-        print(linear(neuvacIrr[:, i], *errorParams[i]).shape)
+        # print(linear(neuvacIrr[:, i], *errorParams[i]).shape)
         neuvacUnc.append(linear(neuvacIrr[:, i], *errorParams[i]))
     neuvacUncs = np.asarray(neuvacUnc).T
-
-    # View the results:
+    ## View the results:
     # for j in range(neuvacIrr.shape[1]):
     #     plt.figure()
     #     plt.fill_between(times, neuvacIrr[:, j]-neuvacUncs[:, j], neuvacIrr[:, j]+neuvacUncs[:, j], color='b', alpha=0.75)
     #     plt.plot(times, neuvacIrr[:, j], 'b-')
 
-    # Save the uncertainty functions for use in the neuvac function:
+    # Save the uncertainty functions for use in the neuvac function, so that error bars can be made from this preliminary
+    # method:
     toolbox.savePickle(errorParams, 'errorParams.pkl')
 
-    # Covariance matrix: Cross-correlation between residuals in different bins.
+    # Compute the normalized cross-correlation matrix between residuals in different bins.
     residuals = []
     for i in range(neuvacIrr.shape[1]):
         residuals.append(np.subtract(neuvacIrr[:, i], correspondingIrrFISM2[:, i]))
     residualsArray = np.asarray(residuals).T
-
+    toolbox.savePickle(residualsArray, 'residualsArray.pkl')
     corMat = toolbox.mycorrelate2d(residualsArray, normalized=True)
+    ## View the matrix:
     # plt.figure()
     # plt.imshow(corMat.T, aspect='auto')
+    # Save the matrix for later use:
     toolbox.savePickle(corMat, 'corMat.pkl')
 
-    # Use the covariance matrix to generate uncertainty estimates:
-    meanIrradiances = np.nanmean(neuvacIrr, axis=0)
+    # ------------------------------------------------------------------------------------------------------------------
+    # Compute the normalized standard reviation of NEUVAC irradiance residuals (in each band):
+    STDNeuvacResids = np.zeros(neuvacIrr.shape[1])
+    for i in range(STDNeuvacResids.shape[0]):
+        STDNeuvacResids[i] = np.nanstd(residualsArray[:, i])
+    # Save these values to be used later for running ensembles:
+    toolbox.savePickle(STDNeuvacResids, 'sigma_NEUVAC.pkl')
 
     sys.exit(0)
