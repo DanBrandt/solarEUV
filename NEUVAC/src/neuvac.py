@@ -162,13 +162,15 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
     for i in range(len(f107)):
         # Loop across the wavelengths (59 conventional wavelengths):
         k = 0
-        P_1 = np.random.normal(0, 1.0)
+        P_n = []
         for j in (range(solarFlux.shape[1])):
             # Percentage perturbation:
             P_j = np.random.normal(0, 1.0)
+            P_n.append(P_j)
+            P_1 = P_n[0]
             # Normalized Correlated Perturbation:
-            C_ji = corMat[0, j] # Only consider correlation with the first wavelength bin
-            N_j = C_ji * P_1 + (1 - C_ji) * P_j
+            C_j1 = corMat[0, j] # Only consider correlation with the first wavelength bin
+            N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
             # Actual Normalized Correlated Perturbation:
             A_j = STDNeuvacResids[j] * N_j
             # Flux calculation
@@ -178,24 +180,30 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
             wvavg = (WAVEL[j] + WAVES[j])/2.
             fluxRes = solarFlux[i, k] * wvavg * 1e-10 / (6.626e-34 * 2.998e8) # / 10.
             euvFlux[i, k] = fluxRes
-            perturbedEuvFlux[i, k] = fluxRes*(1 + A_j)
             if tableFile is None:
                 # Calculation of irradiance:
                 dWave = WAVEL[j] - WAVES[j]
                 if WAVEL[j] != WAVES[j]:
                     irrRes = 0.1 * dWave * spectralIrradiance(euvFlux[i, k], wvavg, dWave)
                     euvIrradiance[i, k] = irrRes
-                    perturbedEuvIrradiance[i, k] = irrRes*(1 + A_j)
+                    perturbedEuvIrradiance[i, k] = irrRes * (1 + A_j/irrRes)
                 else:
                     irrRes = wvavg * spectralIrradiance(euvFlux[i, k], wvavg)
                     euvIrradiance[i, k] = irrRes
-                    perturbedEuvIrradiance[i, k] = irrRes*(1 + A_j)
+                    perturbedEuvIrradiance[i, k] = irrRes * (1 + A_j/irrRes)
             else:
                 irrRes = irrFunc([f107[i], f107a[i]], *neuvacTable[j, 2:])
                 if irrRes < 0:
                     irrRes = 0
-                euvIrradiance[i, k] = irrRes
-                perturbedEuvIrradiance[i, k] = irrRes * (1 + A_j)
+                    euvIrradiance[i, k] = irrRes
+                    if irrRes * (1 + A_j/irrRes) < 0:
+                        perturbedEuvIrradiance[i, k] = 0
+                    else:
+                        perturbedEuvIrradiance[i, k] = irrRes * (1 + A_j / irrRes)
+                else:
+                    euvIrradiance[i, k] = irrRes
+                    perturbedEuvIrradiance[i, k] = irrRes * (1 + A_j / irrRes)
+            perturbedEuvFlux[i, k] = fluxRes * (1 + A_j / irrRes)
             k += 1
 
     if bandLim:  # Returns values ONLY for those corresponding to the wavelengths used by EUVAC

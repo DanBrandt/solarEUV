@@ -982,8 +982,8 @@ def find_exp(number) -> int:
     return 1*(10**(floor(base10)))
 
 def mycorrelate2d(df, normalized=False):
-    # initialize cross correlation matrix with zeros
     # https://stackoverflow.com/questions/54292947/basics-of-normalizing-cross-correlation-with-a-view-to-comparing-signals
+    # initialize cross correlation matrix with zeros
     ccm = np.zeros((df.shape[1], df.shape[1]))
     for i in range(df.shape[1]):
         outer_row = df[i][:]
@@ -994,7 +994,7 @@ def mycorrelate2d(df, normalized=False):
             else:
                 a = (inner_row - np.mean(inner_row)) / (np.std(inner_row) * len(inner_row))
                 # print(a)
-                b = (outer_row - np.mean(outer_row)) / (np.std(outer_row))
+                b = (outer_row - np.mean(outer_row)) / (np.std(outer_row) * len(outer_row))
                 # print(b)
                 x = np.correlate(a, b)
             ccm[i][j] = x

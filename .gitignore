@@ -10,6 +10,7 @@ experiments/myTimesFISM2.pkl
 experiments/Figures/
 experiments/Fitting/
 experiments/Uncertainty/
+experiments/Perturbations/
 tools/myIrrFISM1.pkl
 tools/myIrrFISM2.pkl
 tools/myIrrUncFISM2.pkl
