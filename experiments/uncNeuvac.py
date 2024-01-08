@@ -66,10 +66,13 @@ if __name__=="__main__":
     plt.plot(np.linspace(0, len(F107A) - 1, len(F107A)), F107A, 'g-')
 
     # Generate NEUVAC data:
-    neuvacFlux, neuvacIrr, perturbedNeuvacFlux, perturbedNeuvacIrr = neuvac.neuvacEUV(F107, F107A,
-                                                                                      tableFile=neuvac_tableFile,
-                                                                                      statsFiles=['corMat.pkl',
-                                                                                                  'sigma_NEUVAC.pkl'])
+    neuvacIrr, perturbedNeuvacIrr = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile,
+                                                     statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
+
+    # for i in range(neuvacIrr.shape[1]):
+    #     plt.figure()
+    #     plt.plot(neuvacIrr[:, i])
+    #     plt.plot(perturbedNeuvacIrr[:, i])
 
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
@@ -85,6 +88,7 @@ if __name__=="__main__":
     rebinnedIrrUncFISM2 = np.zeros_like(rebinnedIrrDataFISM2)
     for column in range(rebinnedIrrDataFISM2.shape[1]):
         rebinnedIrrUncFISM2[:, column] = toolbox.rollingStd(rebinnedIrrDataFISM2[:, column], 2)
+
     # for i in range(rebinnedIrrUncFISM2.shape[1]-1):
     #     plt.figure()
     #     plt.plot(rebinnedIrrDataFISM2[:, i])
@@ -268,7 +272,7 @@ if __name__=="__main__":
 
     # ------------------------------------------------------------------------------------------------------------------
     # View the correlation matrix for the residuals of thr perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
-    residualsArrayP = np.subtract(perturbedNeuvacIrr, correspondingIrrFISM2) # np.asarray(residualsP).T
+    residualsArrayP = np.subtract(perturbedNeuvacIrr, neuvacIrr) # np.asarray(residualsP).T
     corMatP = toolbox.mycorrelate2d(residualsArrayP, normalized=True)
     #
     # Sanity check looking at the perturbed residuals:
@@ -277,15 +281,18 @@ if __name__=="__main__":
     #     plt.plot(residualsArray[:, i])
     #     plt.plot(residualsArrayP[:, i])
     #
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(9,6))
-    axs[0].imshow(corMat, aspect='auto')
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(11, 6))
+    pos=axs[0].imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
     axs[0].set_xlabel('Wavelength Band')
     axs[0].set_ylabel('Wavelength Band')
-    axs[0].set_title('Original Correlation Matrix (Residuals)')
-    axs[1].imshow(corMatP, aspect='auto')
+    axs[0].set_title('Original Correlation Matrix (NEUVAC - FISM2)')
+    pos2=axs[1].imshow(corMatP, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
     axs[1].set_xlabel('Wavelength Band')
     axs[1].set_ylabel('Wavelength Band')
-    axs[1].set_title('Perturbation Correlation Matrix (Residuals)')
+    axs[1].set_title('Perturbation Correlation Matrix (NEUVAC_P - NEUVAC)')
+    fig.colorbar(pos, ax=axs[0])
+    fig.colorbar(pos2, ax=axs[1])
+
     # View the correlation matrices of the irradiances themselves:
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(9, 6))
     corMatOriginal = toolbox.mycorrelate2d(neuvacIrr, normalized=True)
@@ -300,19 +307,20 @@ if __name__=="__main__":
     axs[1].set_title('Perturbation Correlation Matrix (Irradiances)')
 
     # View the spread of the residuals for perturbed and unperturbed spectra:
-    for i in range(neuvacFlux.shape[1]):
+    for i in range(neuvacIrr.shape[1]):
         plt.figure()
         # plt.plot(neuvacIrr[:, i], label='Base')
         # plt.plot(perturbedNeuvacIrr[:, i], label='Perturbed')
         unperturbed_resids = np.subtract(neuvacIrr[:, i], correspondingIrrFISM2[:, i])
-        perturbed_resids = np.subtract(perturbedNeuvacIrr[:, i], correspondingIrrFISM2[:, i])
+        perturbed_resids = np.subtract(perturbedNeuvacIrr[:, i], neuvacIrr[:, i]) # np.subtract(perturbedNeuvacIrr[:, i], correspondingIrrFISM2[:, i])
         # plt.plot(np.subtract(neuvacIrr[:, i], correspondingIrrFISM2[:, i]), label='Residuals (Base-FISM2)')
         # plt.plot(np.subtract(perturbedNeuvacIrr[:, i], correspondingIrrFISM2[:, i]), label='Residuals (Perturbed-FISM2)')
         bins = np.linspace(np.nanmin([np.nanmin(unperturbed_resids), np.nanmin(perturbed_resids)]),
                            np.nanmax([np.nanmax(unperturbed_resids), np.nanmax(perturbed_resids)]),
                            num=100)
         plt.hist(unperturbed_resids, bins=bins, label='Residuals (Base-FISM2)')
-        plt.hist(perturbed_resids, bins=bins, label='Residuals (Perturbed-FISM2)', alpha=0.8)
+        plt.hist(perturbed_resids, bins=bins, label='Residuals (Perturbed-Base)', alpha=0.8)
+        plt.title('NEUVAC Residuals: Band '+str(i+1))
         plt.legend(loc='upper right')
         plt.savefig('Perturbations/perturbed_' + str(i) + '.png', dpi=100)
     # ------------------------------------------------------------------------------------------------------------------

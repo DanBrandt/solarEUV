@@ -993,9 +993,7 @@ def mycorrelate2d(df, normalized=False):
                 x = np.correlate(inner_row, outer_row)
             else:
                 a = (inner_row - np.mean(inner_row)) / (np.std(inner_row) * len(inner_row))
-                # print(a)
-                b = (outer_row - np.mean(outer_row)) / (np.std(outer_row) * len(outer_row))
-                # print(b)
+                b = (outer_row - np.mean(outer_row)) / (np.std(outer_row) )
                 x = np.correlate(a, b)
             ccm[i][j] = x
     return ccm
