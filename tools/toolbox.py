@@ -997,6 +997,12 @@ def mycorrelate2d(df, normalized=False):
                 x = np.correlate(a, b)
             ccm[i][j] = x
     return ccm
+
+def get_cc(array1, array2):
+    a = (array1 - np.mean(array1)) / (np.std(array1) * len(array1))
+    b = (array2 - np.mean(array2)) / (np.std(array2))
+    c = np.correlate(a, b)
+    return c
 #-----------------------------------------------------------------------------------------------------------------------
 # UNSCENTED KALMAN FILTER (from https://codingcorner.org/unscented-kalman-filter-ukf-best-explanation-with-python/)
 class UKF(object):

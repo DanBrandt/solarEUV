@@ -118,6 +118,11 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
     :return perturbedEuvIrradiance: ndarray
         A nxm ndarray where n is the number of EUV irradiance values perturbed due to inherent uncertainty and m is the
         number of wavelength bands.
+    :return savedPerts: ndarray
+        A nxm ndarray of the perturbations (time series of the NEUVAC+Perturbation - NEUVAC)
+    :return cc2: ndarray
+        A mxm ndarray of the correlation matrix between each wavelength's time-series of the NEUVAC+Perturbation -
+        NEUVAC.
     """
     if type(f107) != np.ndarray:
         f107 = np.asarray([f107])
@@ -125,10 +130,8 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
         solarFlux = np.zeros((1, waveTable.shape[0]))
     else:
         solarFlux = np.zeros((len(f107), waveTable.shape[0]))
-    euvFlux = np.zeros_like(solarFlux)
-    euvIrradiance = np.zeros_like(euvFlux)
-    perturbedEuvFlux = np.zeros_like(euvFlux)
-    perturbedEuvIrradiance = np.zeros_like(euvFlux)
+    euvIrradiance = np.zeros_like(solarFlux)
+    perturbedEuvIrradiance = np.zeros_like(solarFlux)
     # Gather the model parameters:
     neuvacTable = []
     with open(tableFile) as neuvacFile:
@@ -145,6 +148,9 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
     sigmaFile = statsFiles[1] #'../../experiments/sigma_NEUVAC.pkl'
     STDNeuvacResids = tools.toolbox.loadPickle(sigmaFile)
     # Loop across the F10.7 (and F10.7A) values:
+    nTimes = len(f107)
+    nWaves = solarFlux.shape[1]
+    savedPerts = np.zeros((nTimes, nWaves))
     for i in range(len(f107)):
         # Loop across the wavelengths (59 conventional wavelengths):
         k = 0
@@ -170,12 +176,20 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
             else:
                 euvIrradiance[i, k] = irrRes
                 perturbedEuvIrradiance[i, k] = irrRes + A_j
+            savedPerts[i, j] = A_j
             k += 1
+
+    # Generate a correlation matrix of the perturbations:
+    cc2 = np.zeros((nWaves, nWaves))
+    for iW1 in range(nWaves):
+        for iW2 in range(nWaves):
+            cc = tools.toolbox.get_cc(savedPerts[:, iW1], savedPerts[:, iW2])
+            cc2[iW1, iW2] = cc
 
     if bandLim:  # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
         return euvIrradiance[:, 7:44], perturbedEuvIrradiance[:, 7:44]
     else:
-        return euvIrradiance, perturbedEuvIrradiance
+        return euvIrradiance, perturbedEuvIrradiance, savedPerts, cc2
 
 def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=False):
     """

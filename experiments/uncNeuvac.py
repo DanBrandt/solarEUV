@@ -66,7 +66,7 @@ if __name__=="__main__":
     plt.plot(np.linspace(0, len(F107A) - 1, len(F107A)), F107A, 'g-')
 
     # Generate NEUVAC data:
-    neuvacIrr, perturbedNeuvacIrr = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile,
+    neuvacIrr, perturbedNeuvacIrr, savedPerts, cc2 = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile,
                                                      statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
     # for i in range(neuvacIrr.shape[1]):
@@ -271,22 +271,13 @@ if __name__=="__main__":
     toolbox.savePickle(STDNeuvacResids, 'sigma_NEUVAC.pkl')
 
     # ------------------------------------------------------------------------------------------------------------------
-    # View the correlation matrix for the residuals of thr perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
-    residualsArrayP = np.subtract(perturbedNeuvacIrr, neuvacIrr) # np.asarray(residualsP).T
-    corMatP = toolbox.mycorrelate2d(residualsArrayP, normalized=True)
-    #
-    # Sanity check looking at the perturbed residuals:
-    # for i in range(neuvacIrr.shape[1]):
-    #     plt.figure()
-    #     plt.plot(residualsArray[:, i])
-    #     plt.plot(residualsArrayP[:, i])
-    #
+    # View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(11, 6))
     pos=axs[0].imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
     axs[0].set_xlabel('Wavelength Band')
     axs[0].set_ylabel('Wavelength Band')
     axs[0].set_title('Original Correlation Matrix (NEUVAC - FISM2)')
-    pos2=axs[1].imshow(corMatP, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
+    pos2=axs[1].imshow(cc2, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
     axs[1].set_xlabel('Wavelength Band')
     axs[1].set_ylabel('Wavelength Band')
     axs[1].set_title('Perturbation Correlation Matrix (NEUVAC_P - NEUVAC)')
