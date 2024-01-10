@@ -7,10 +7,8 @@ import matplotlib, sys
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
-from statsmodels.tsa.api import VAR
-from sklearn.metrics import mean_absolute_percentage_error
-from scipy.stats import pearsonr
 from scipy.optimize import curve_fit
+from scipy.stats import pearsonr
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -27,16 +25,6 @@ euv_folder = '../tools/EUV/'
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
 figures_folder = 'Uncertainty'
 #-----------------------------------------------------------------------------------------------------------------------
-
-#-----------------------------------------------------------------------------------------------------------------------
-# Helper functions:
-def linear(x, a, b):
-    return a*x + b
-def squareDiff(x, y):
-    res = []
-    for i in range(len(x)):
-        res.append((y[i] - x[i])**2)
-    return np.asarray(res)
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Execution
@@ -69,11 +57,6 @@ if __name__=="__main__":
     neuvacIrr, perturbedNeuvacIrr, savedPerts, cc2 = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile,
                                                      statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
-    # for i in range(neuvacIrr.shape[1]):
-    #     plt.figure()
-    #     plt.plot(neuvacIrr[:, i])
-    #     plt.plot(perturbedNeuvacIrr[:, i])
-
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
@@ -83,16 +66,9 @@ if __name__=="__main__":
     # Rebin the data:
     myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
                                                                     zero=False)
-    # _, rebinnedIrrUncFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrUncAllFISM2, euv_data_59,
-    #                                                                zero=False, unc=True)
     rebinnedIrrUncFISM2 = np.zeros_like(rebinnedIrrDataFISM2)
     for column in range(rebinnedIrrDataFISM2.shape[1]):
         rebinnedIrrUncFISM2[:, column] = toolbox.rollingStd(rebinnedIrrDataFISM2[:, column], 2)
-
-    # for i in range(rebinnedIrrUncFISM2.shape[1]-1):
-    #     plt.figure()
-    #     plt.plot(rebinnedIrrDataFISM2[:, i])
-    #     plt.plot(rebinnedIrrUncFISM2[:, i])
 
     # Replace bad values with NaNs:
     myIrrDataAllFISM2Fixed = rebinnedIrrDataFISM2.copy()
@@ -109,12 +85,6 @@ if __name__=="__main__":
     trainNEUVAC = neuvacIrr[trainIndsOMNI, :]
     trainFISM2 = myIrrDataAllFISM2Fixed[trainIndsFISM2, :]
     trainUncFISM2 = rebinnedIrrUncFISM2[trainIndsFISM2, :]
-    # Output the training data as a .pickle files:
-    # toolbox.savePickle(trainFISM2, 'trainFISM2.pkl')
-    # toolbox.savePickle(trainF107, 'trainF107.pkl')
-    # toolbox.savePickle(trainF107A, 'trainF107A.pkl')
-    # toolbox.savePickle(trainTimesOMNI, 'trainTimesOMNI.pkl')
-    # toolbox.savePickle(trainTimesFISM2, 'trainTimesFISM2.pkl')
 
     # Make a test set out of Solar Cycle 25:
     testIndsOMNI = np.where(times >= datetime(2019, 12, 31))[0]
@@ -127,77 +97,6 @@ if __name__=="__main__":
     testFISM2 = myIrrDataAllFISM2Fixed[testIndsFISM2, :]
     testUncFISM2 = rebinnedIrrUncFISM2[testIndsFISM2, :]
     # ------------------------------------------------------------------------------------------------------------------
-
-    # Perform Vector Autoregression for the FISM2 forward model:
-
-    # # 1: Enforce stationarity by detrending the data:
-    modelLag = 27
-    trendWindow = 365
-    # myX = rebinnedIrrDataFISM2[trainIndsFISM2, :]
-    # trainFISM2trend = np.zeros_like(myX)
-    # for i in range(trainFISM2trend.shape[1]):
-    #     averaged_irradiance = toolbox.rollingAverage(myX[:, i], window_length=int(trendWindow), impute_edges=True)
-    #     trainFISM2trend[:, i] = averaged_irradiance
-    # # Divide the data by the 12-month averaged data to remove the trend:
-    # detrendedFISM2 = np.divide(myX, trainFISM2trend)
-    # # Employ differencing to enforce stationarity:
-    # differencedDetrendedFISM2 = np.diff(detrendedFISM2, axis=0)
-    # model = VAR(differencedDetrendedFISM2)
-    # # 2: Fit a model with a lag of 27 days (per the suggestion of Warren, et al. 2017: https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2017SW001637)
-    # results = model.fit(modelLag)
-    #
-    # # 3: Generate a sample forecast as a sanity check:
-    # # forecastResults = results.forecast(differencedDetrendedFISM2[-modelLag:, :], 5)
-    # forecastResults = toolbox.forecast(differencedDetrendedFISM2[-modelLag:, :], results.coefs, results.coefs_exog.T, 5)
-    # yesterday = differencedDetrendedFISM2[-1, :]
-    # # View the forecast results - to invert, use the difference between the current and yesterday's F10.7, and multiply by the mean of the F10.7 of the last 6 months:
-    # invertedForecastResults = toolbox.forecastInversion(forecastResults, myX, yesterday, trainFISM2trend, window=trendWindow)
-    # # firstX = np.linspace(0, 26617, 26618)
-    # # secondX = np.linspace(26617, 26621, 5)
-    # # plt.figure()
-    # # plt.plot(firstX, myX[:, 32])
-    # # plt.plot(secondX, invertedForecastResults[:, 32])
-
-    # 4: Hold off on the above - perform VAR to find a forward model for F10.7, F10.7A, AND FISM2:
-    allEUVDataTrain = np.hstack( (np.vstack([trainF107, trainF107A]).T, trainFISM2) ) # trainFISM2 # np.vstack((trainF107, trainF107A)).T
-    allEUVDataTest = np.hstack( (np.vstack([testF107, testF107A]).T, testFISM2) )
-    allEUVUncTrain = np.hstack( (np.vstack([rollingStdF107[trainIndsOMNI], rollingStdF107A[trainIndsOMNI]]).T, trainUncFISM2) )
-    allEUVUncTest = np.hstack((np.vstack([rollingStdF107[testIndsOMNI], rollingStdF107A[testIndsOMNI]]).T, testUncFISM2))
-    # allEUV_forwardModel = VAR(allEUVData)
-    # allEUV_result = allEUV_forwardModel.fit(modelLag)
-    # allEUV_subset = allEUVData[-modelLag:, :]
-    # allEUV_forecast = allEUV_result.forecast(allEUV_subset, 5)
-    # plt.figure()
-    # plt.plot(np.linspace(0, 26, 27), allEUV_subset[:, 0], color='b')
-    # plt.plot(np.linspace(26, 31, 5), allEUV_forecast[:, 0], color='c')
-    # plt.plot(np.linspace(0, 26, 27), allEUV_subset[:, 1], color='r')
-    # plt.plot(np.linspace(26, 31, 5), allEUV_forecast[:, 1], color='m')
-
-    # 5: Using the VAR as the forward model for [F10.7, F10.7A], combine it with an Unscented Kalman Filter for uncertainty quantification:
-
-    # A: Scale ALL the FISM2 data to match the same order of magnitude as the F10.7 values:
-    trainMeans = np.nanmean(allEUVDataTrain, axis=0)
-    trainExps = np.array([toolbox.find_exp(element) for element in trainMeans])
-    trainFactors = np.array([trainExps[0]/element for element in trainExps])
-    allEUVDataTrainModified = allEUVDataTrain * trainFactors
-    allEUVDataTestModified = allEUVDataTest * trainFactors
-    x_state = allEUVDataTrainModified # allEUVDataTrain
-
-    # B: Verify the VAR approach by fitting a model with a maximum lag of 27 days, and predicting 5 days out.
-    forwardModel = VAR(x_state[-modelLag*2:, :])
-    result = forwardModel.fit(maxlags=modelLag)
-    lag_order = result.k_ar
-    fcst = result.forecast(x_state[-lag_order:, :], 5)
-    test = allEUVDataTestModified[:5, :]
-    model_accuracy = 1 - mean_absolute_percentage_error(test, fcst)
-    # print(model_accuracy)
-    # C: View the results as a sanity check:
-    # for i in range(x_state.shape[1]):
-    #     plt.figure()
-    #     plt.plot(np.linspace(0, 26, 27), x_state[-lag_order:, i], color='b')
-    #     plt.plot(np.linspace(26, 31, 5), test[:, i], color='b')
-    #     plt.plot(np.linspace(26, 31, 5), fcst[:, i], color='c', linestyle='--')
-    # ------------------------------------------------------------------------------------------------------------------
     # UNCERTAINTY ANALYSIS
 
     # Harmonize the times for NEUVAC and FISM2:
@@ -206,64 +105,14 @@ if __name__=="__main__":
     correspondingIrrFISM2 = rebinnedIrrDataFISM2[correspondingIndsFISM2, :]
 
     # ------------------------------------------------------------------------------------------------------------------
-    # 1: Obtain residuals between NEUVAC and FISM2:
-    pearsons_R = []
-    errorParams = []
-    i = 0
-    for band in range(neuvacIrr.shape[-1]):
-        fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(9,6))
-        # FISM2 Irradiance vs NEUVAC Irradiance
-        sortInds = np.argsort(neuvacIrr[:, band])
-        axs[0].scatter(neuvacIrr[:, band][sortInds], correspondingIrrFISM2[:, band][sortInds], color='b')
-        sample = np.linspace(neuvacIrr[:, band][sortInds][0], neuvacIrr[:, band][sortInds][-1], 1000)
-        popt, pcov = curve_fit(linear, neuvacIrr[:, band][sortInds], correspondingIrrFISM2[:, band][sortInds])
-        axs[0].plot(sample, linear(sample, *popt), color='r')
-        axs[0].set_xlabel('NEUVAC')
-        axs[0].set_ylabel('FISM2')
-        # Look at (Irradiance Predicted - Irradiance FISM2)^2 vs. Irradiance Predicted
-        sqdf = squareDiff(correspondingIrrFISM2[:, band], neuvacIrr[:, band])
-        axs[1].scatter(neuvacIrr[:, band], sqdf, color='b')
-        popt2, pcov2 = curve_fit(linear, neuvacIrr[:, band][sortInds], sqdf[sortInds])
-        axs[1].plot(sample, linear(sample, *popt2), 'r-')
-        pearson = pearsonr(neuvacIrr[:, band][sortInds], sqdf[sortInds])
-        pearsons_R.append(pearson[0])
-        errorParams.append(popt2)
-        axs[1].set_yscale('log')
-        axs[1].set_xlabel('NEUVAC')
-        axs[1].set_ylabel('(NEUVAC - FISM2)$^2$')
-        fig.suptitle('Uncertainty Analysis: Band '+str(band+1))
-        plt.tight_layout()
-        plt.savefig(figures_folder+'/Uncertainty_Analysis_Band_'+str(i+1)+'.png', dpi=100)
-        i += 1
-
-    # Collect the uncertainties so that error bars can be made.
-    neuvacUnc = []
-    for i in range(neuvacIrr.shape[1]):
-        # print(linear(neuvacIrr[:, i], *errorParams[i]).shape)
-        neuvacUnc.append(linear(neuvacIrr[:, i], *errorParams[i]))
-    neuvacUncs = np.asarray(neuvacUnc).T
-    ## View the results:
-    # for j in range(neuvacIrr.shape[1]):
-    #     plt.figure()
-    #     plt.fill_between(times, neuvacIrr[:, j]-neuvacUncs[:, j], neuvacIrr[:, j]+neuvacUncs[:, j], color='b', alpha=0.75)
-    #     plt.plot(times, neuvacIrr[:, j], 'b-')
-
-    # Save the uncertainty functions for use in the neuvac function, so that error bars can be made from this preliminary
-    # method:
-    toolbox.savePickle(errorParams, 'errorParams.pkl')
-
-    # Compute the normalized cross-correlation matrix between residuals in different bins.
+    # 1: Compute the normalized cross-correlation matrix between residuals in different bins.
     residualsArray = np.subtract(neuvacIrr, correspondingIrrFISM2)
     toolbox.savePickle(residualsArray, 'residualsArray.pkl')
     corMat = toolbox.mycorrelate2d(residualsArray, normalized=True)
-    ## View the matrix:
-    # plt.figure()
-    # plt.imshow(corMat.T, aspect='auto')
-    # Save the matrix for later use:
     toolbox.savePickle(corMat, 'corMat.pkl')
 
     # ------------------------------------------------------------------------------------------------------------------
-    # Compute the normalized standard reviation of NEUVAC irradiance residuals (in each band):
+    # 2: Compute the normalized standard deviation of NEUVAC irradiance residuals (in each band):
     STDNeuvacResids = np.zeros(neuvacIrr.shape[1])
     for i in range(STDNeuvacResids.shape[0]):
         STDNeuvacResids[i] = np.nanstd(residualsArray[:, i])
@@ -271,7 +120,7 @@ if __name__=="__main__":
     toolbox.savePickle(STDNeuvacResids, 'sigma_NEUVAC.pkl')
 
     # ------------------------------------------------------------------------------------------------------------------
-    # View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
+    # 3: View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
     fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(11, 6))
     pos=axs[0].imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
     axs[0].set_xlabel('Wavelength Band')
@@ -283,56 +132,47 @@ if __name__=="__main__":
     axs[1].set_title('Perturbation Correlation Matrix (NEUVAC_P - NEUVAC)')
     fig.colorbar(pos, ax=axs[0])
     fig.colorbar(pos2, ax=axs[1])
+    plt.savefig('Uncertainty/corMats.png', dpi=300)
 
-    # View the correlation matrices of the irradiances themselves:
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(9, 6))
-    corMatOriginal = toolbox.mycorrelate2d(neuvacIrr, normalized=True)
-    axs[0].imshow(corMatOriginal, aspect='auto')
-    axs[0].set_xlabel('Wavelength Band')
-    axs[0].set_ylabel('Wavelength Band')
-    axs[0].set_title('Original Correlation Matrix (Irradiances)')
-    corMatPerturbed = toolbox.mycorrelate2d(perturbedNeuvacIrr, normalized=True)
-    axs[1].imshow(corMatPerturbed, aspect='auto')
-    axs[1].set_xlabel('Wavelength Band')
-    axs[1].set_ylabel('Wavelength Band')
-    axs[1].set_title('Perturbation Correlation Matrix (Irradiances)')
-
-    # View the spread of the residuals for perturbed and unperturbed spectra:
-    for i in range(neuvacIrr.shape[1]):
-        plt.figure()
-        # plt.plot(neuvacIrr[:, i], label='Base')
-        # plt.plot(perturbedNeuvacIrr[:, i], label='Perturbed')
-        unperturbed_resids = np.subtract(neuvacIrr[:, i], correspondingIrrFISM2[:, i])
-        perturbed_resids = np.subtract(perturbedNeuvacIrr[:, i], neuvacIrr[:, i]) # np.subtract(perturbedNeuvacIrr[:, i], correspondingIrrFISM2[:, i])
-        # plt.plot(np.subtract(neuvacIrr[:, i], correspondingIrrFISM2[:, i]), label='Residuals (Base-FISM2)')
-        # plt.plot(np.subtract(perturbedNeuvacIrr[:, i], correspondingIrrFISM2[:, i]), label='Residuals (Perturbed-FISM2)')
-        bins = np.linspace(np.nanmin([np.nanmin(unperturbed_resids), np.nanmin(perturbed_resids)]),
-                           np.nanmax([np.nanmax(unperturbed_resids), np.nanmax(perturbed_resids)]),
-                           num=100)
-        plt.hist(unperturbed_resids, bins=bins, label='Residuals (Base-FISM2)')
-        plt.hist(perturbed_resids, bins=bins, label='Residuals (Perturbed-Base)', alpha=0.8)
-        plt.title('NEUVAC Residuals: Band '+str(i+1))
-        plt.legend(loc='upper right')
-        plt.savefig('Perturbations/perturbed_' + str(i) + '.png', dpi=100)
     # ------------------------------------------------------------------------------------------------------------------
-    # Testing the correlations: See if stddevs for NEUVAC_P - NEUVAC are similar to NEUVAV - FISM2
-    neuvacP_minus_neuvac = np.subtract(perturbedNeuvacIrr, neuvacIrr)
-    STD_neuvacP_minus_neuvac = np.zeros(neuvacIrr.shape[1])
-    for i in range(STD_neuvacP_minus_neuvac.shape[0]):
-        STD_neuvacP_minus_neuvac[i] = np.nanstd(neuvacP_minus_neuvac[:, i])
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(12,6))
-    axs[0].plot(STDNeuvacResids, label='STD: NEUVAC - FISM2')
-    axs[0].plot(STD_neuvacP_minus_neuvac, label='STD: NEUVAC$_P$ - NEUVAC')
-    axs[0].legend(loc='best')
-    axs[0].set_xlabel('Wavelength Bin')
-    axs[0].set_ylabel(r'\sigma')
-    axs[1].semilogy(STDNeuvacResids, label='STD: NEUVAC - FISM2')
-    axs[1].semilogy(STD_neuvacP_minus_neuvac, label='STD: NEUVAC$_P$ - NEUVAC')
-    axs[1].legend(loc='best')
-    axs[1].set_xlabel('Wavelength Bin')
-    axs[1].set_ylabel(r'\sigma')
-    fig.suptitle('Standard Deviations of Differences')
-    #
+    # 4: Look at the Correlation between FISM2 and NEUVAC in each band, and that of (NEUVAC-FISM2)^2 and NEUVAC in each band:
+    pearsonVals = []
+    for i in range(neuvacIrr.shape[1]):
+        fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(11,6))
+        # FISM2 Irradiance vs NEUVAC Irradiance
+        sortInds = np.argsort(neuvacIrr[:, i])
+        sortedNEUVAC = neuvacIrr[:, i][sortInds]
+        sortedFISM2 = correspondingIrrFISM2[:, i][sortInds]
+        popt, pcov = curve_fit(toolbox.linear, sortedNEUVAC, sortedFISM2)
+        pearsonR = pearsonr(sortedNEUVAC, sortedFISM2)
+        axs[0].scatter(sortedNEUVAC, sortedFISM2, color='b')
+        xlims = axs[0].get_xlim()
+        sample = np.linspace(xlims[0], xlims[-1], 250)
+        axs[0].plot(sample, toolbox.linear(sample, *popt), 'r-', label='R='+str(np.round(pearsonR[0], 2)))
+        axs[0].set_xlim(xlims)
+        axs[0].set_xlabel('NEUVAC (W/m$^2$)')
+        axs[0].set_ylabel('FISM2 (W/m$^2$)')
+        axs[0].legend(loc='best')
+        axs[0].set_xticklabels(axs[0].get_xticklabels(), rotation=45, ha='right')
+        # Look at (Irradiance Predicted - Irradiance FISM2)^2 vs. Irradiance Predicted
+        squareDiffs = toolbox.squareDiff(sortedNEUVAC, sortedFISM2)
+        popt2, pcov2 = curve_fit(toolbox.linear, sortedNEUVAC, squareDiffs)
+        pearsonR2 = pearsonr(sortedNEUVAC, squareDiffs)
+        axs[1].scatter(sortedNEUVAC, squareDiffs, color='b')
+        xlims2 = axs[0].get_xlim()
+        sample2 = np.linspace(xlims2[0], xlims2[-1], 250)
+        axs[1].plot(sample2, toolbox.linear(sample2, *popt2), 'r-', label='R='+str(np.round(pearsonR2[0], 2)))
+        axs[1].set_xlim(xlims2)
+        axs[1].set_yscale('log')
+        axs[1].set_xlabel('NEUVAC')
+        axs[1].set_ylabel('(NEUVAC - FISM2)$^2$ (W/m$^2$)')
+        axs[1].legend(loc='best')
+        axs[1].set_xticklabels(axs[0].get_xticklabels(), rotation=45, ha='right')
+        fig.suptitle('FISM2 and NEUVAC Correlation and Squared Differences')
+        plt.tight_layout()
+        plt.savefig('Uncertainty/correlation_sqdf_band_'+str(i+1)+'.png', dpi=300)
+        pearsonVals.append([pearsonR[0], pearsonR2[0]])
 
+    # ------------------------------------------------------------------------------------------------------------------
     # Exit with a zero error code:
     sys.exit(0)

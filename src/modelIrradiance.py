@@ -109,7 +109,7 @@ def getIrradiance(dateStart, dateEnd, bins, source=None):
         if bins == 'HEUVAC':
             flux, irradiance = heuvac.heuvac(F107, F107A)
         elif bins == 'NEUVAC':
-            flux, irradiance = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
+            irradiance, irradiance_perturbed, _, _ = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
         elif bins == 'SOLOMON':
             # TODO: FIX ISSUES WITH THE SOLOMON MODEL!
             flux, irradiance = solomon.solomon(F107, F107A)
