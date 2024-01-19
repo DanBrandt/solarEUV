@@ -13,7 +13,7 @@ c = 299792458 # Speed of light in m s^-1
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Functions:
-def spectralIrradiance(photonFlux, wavelength, dWavelength=None):
+def spectralIrradiance(photonFlux, wavelength):
     """
     Convert the photon flux to the corresponding spectral irradiance, given a specific wavelength.
     :param: photonFlux: ndarray, float, or int
@@ -26,13 +26,14 @@ def spectralIrradiance(photonFlux, wavelength, dWavelength=None):
         The corresponding spectral irradiance in units of W/m^2/nm.
     """
     photonEnergy = (h*c) / (wavelength*1e-10) # Convert the wavelength in the denominator to meters.
-    if dWavelength != None:
-        irradiance = photonFlux * photonEnergy * (1./(dWavelength*0.1)) # Multiply the denominator by 0.1 in order to convert from an Angstrom interval to a nanometer interval.
-    else:
-        irradiance = photonFlux * photonEnergy / wavelength
+    irradiance = photonFlux * photonEnergy
+    # if dWavelength != None:
+    #     irradiance = photonFlux * photonEnergy * (1./(dWavelength*0.1)) # Multiply the denominator by 0.1 in order to convert from an Angstrom interval to a nanometer interval.
+    # else:
+    #     irradiance = photonFlux * photonEnergy / wavelength
     return irradiance
 
-def spectralFlux(irradiance, wavelength, dWavelength=10):
+def spectralFlux(irradiance, wavelength): #, dWavelength=10):
     """
     Convert the spectral irradiance to spectral flux, given a specific wavelength.
     :param: irradiance: ndarray, float, or int
@@ -45,5 +46,5 @@ def spectralFlux(irradiance, wavelength, dWavelength=10):
         The corresponding spectral flux in units of Watts.
     """
     photonEnergy = (h * c) / (wavelength * 1e-10)
-    photonFlux = (irradiance * dWavelength * 0.1) / photonEnergy
+    photonFlux = irradiance / photonEnergy # (irradiance * dWavelength * 0.1) / photonEnergy
     return photonFlux

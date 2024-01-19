@@ -4,17 +4,25 @@
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports:
-
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports:
 from tools import toolbox
+from tools.EUV.fism2_process import read_euv_csv_file
+from tools.processIrradiances import obtainFism2
 from NEUVAC.src import neuvac
+from empiricalModels.models.EUVAC import euvac
+from empiricalModels.models.HEUVAC import heuvac
+from empiricalModels.models.SOLOMON import solomon
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Directory Management
+euv_folder = '../tools/EUV/'
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -31,17 +39,41 @@ if __name__=="__main__":
     F107 = toolbox.loadPickle(omniF107Data)
     F107A = toolbox.loadPickle(omniF107AveData)
 
+    # Obtain FISM2 data:
+    euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
+    mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
+    fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
+    myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
+    # Rebin the data:
+    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
+                                                                    zero=False)
+    fism2Irr = rebinnedIrrDataFISM2[:, 7:44]
+    # Harmonize the times for NEUVAC and FISM2:
+    correspondingIndsFISM2 = np.where((myIrrTimesFISM2 >= times[0]) & (myIrrTimesFISM2 <= times[-1]))[0]
+    correspondingIrrTimesFISM2 = myIrrTimesFISM2[correspondingIndsFISM2]
+    correspondingFism2Irr = fism2Irr[correspondingIndsFISM2, :]
+
     # Generate NEUVAC data:
-    neuvacIrr, perturbedNeuvacIrr, savedPerts, cc2 = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile,
+    neuvacIrr, perturbedNeuvacIrr, savedPerts, cc2 = neuvac.neuvacEUV(F107, F107A, bandLim=True, tableFile=neuvac_tableFile,
                                                                       statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
     # Generate EUVAC data:
-
+    euvacFlux, euvacIrr = euvac.euvac(F107, F107A)
 
     # Generate HEUVAC data:
+    heuvacFlux, heuvacIrr = heuvac.heuvac(F107, F107A, torr=True)
 
+    # Generate SOLOMON data and rebin everything into the SOLOMON bins:
+    solomonFlux, solomonIrr = solomon.solomon(F107, F107A)
 
-    # Generate SOLOMON data:
+    # 1A: Sample spectra during Low and High Solar Activity:
+    euvacTable = euvac.euvacTable
+    mids = 0.5 * (euvacTable[:, 1] + euvacTable[:, 2])
+    xPos = np.append(euvacTable[:, 1], euvacTable[:, 2][-1])
+    sortInds = np.argsort(xPos)
+    xPosSorted = xPos[sortInds]
+
+    # 1B: Sample TIME SERIES during Low and High Solar Activity (3 bands only):
 
     # ------------------------------------------------------------------------------------------------------------------
     # 2: PERTURBATIONS
@@ -52,4 +84,43 @@ if __name__=="__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # 4: INTEGRATED ENERGY
 
+    # ------------------------------------------------------------------------------------------------------------------
+
+    plt.figure()
+    j = 3000
+    plt.plot(xPosSorted[:-1], correspondingFism2Irr[j, :][sortInds[:-1]], label='FISM2')
+    # plt.plot(xPosSorted[:-1], neuvacIrr[j, :], label='NEUVAC')
+    plt.plot(xPosSorted[:-1], perturbedNeuvacIrr[j, :], label='Perturbed NEUVAC')
+    plt.plot(xPosSorted[:-1], euvacIrr[j, :][sortInds[:-1]], label='EUVAC')
+    # plt.plot(xPosSorted[:-1], heuvacIrr[j, :], label='HEUVAC')
+    plt.legend(loc='best')
+    # plt.yscale('log')
+
+    # Publication-like figure of a spectrum:
+    # TODO: Revise this figure so that the spectral lines correspond to POINTS, and are plotted separately.
+    plt.figure()
+    j = 3500
+    plt.stairs(values=correspondingFism2Irr[j, :][sortInds[:-1]], edges=xPosSorted, label='FISM2')
+    # plt.plot(neuvacIrr[j, :], label='NEUVAC')
+    plt.stairs(values=neuvacIrr[j, :][sortInds[:-1]], edges=xPosSorted, label='NEUVAC')
+    # plt.plot(perturbedNeuvacIrr[j, :], label='Perturbed NEUVAC')
+    plt.stairs(values=perturbedNeuvacIrr[j, :][sortInds[:-1]], edges=xPosSorted, label='Perturbed NEUVAC')
+    # plt.plot(xPosSorted[:-1], euvacIrr[j, :][sortInds[:-1]], label='EUVAC')
+    plt.stairs(values=euvacIrr[j, :][sortInds[:-1]], edges=xPosSorted, label='EUVAC')
+    # plt.plot(heuvacIrr[j, :], label='HEUVAC')
+    # plt.stairs(values=heuvacIrr[j, :][sortInds[:-1]], edges=xPosSorted, label='HEUVAC')
+    plt.yscale('log')
+    plt.legend(loc='best')
+    plt.show()
+
+    for i in range(euvacIrr.shape[1]):
+        plt.figure()
+        plt.plot(correspondingFism2Irr[:, i], label='FISM2')
+        # plt.plot(neuvacIrr[:, i], label='NEUVAC')
+        plt.plot(perturbedNeuvacIrr[:, i], label='Perturbed NEUVAC')
+        plt.plot(euvacIrr[:, i], label='EUVAC')
+        # plt.plot(heuvacIrr[:, i], label='HEUVAC')
+        plt.legend(loc='best')
+
+    sys.exit(0)
 #-----------------------------------------------------------------------------------------------------------------------

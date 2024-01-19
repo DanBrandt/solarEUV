@@ -7,7 +7,6 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level imports:
 import numpy as np
-import os
 from scipy.optimize import curve_fit, minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta
@@ -16,9 +15,7 @@ from datetime import timedelta
 #-----------------------------------------------------------------------------------------------------------------------
 # Local imports:
 import tools.toolbox
-from tools.spectralAnalysis import spectralIrradiance
 from tools.toolbox import find_nearest
-from experiments import uncNeuvac
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -187,7 +184,7 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
             cc2[iW1, iW2] = cc
 
     if bandLim:  # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
-        return euvIrradiance[:, 7:44], perturbedEuvIrradiance[:, 7:44]
+        return euvIrradiance[:, 7:44], perturbedEuvIrradiance[:, 7:44], savedPerts, cc2
     else:
         return euvIrradiance, perturbedEuvIrradiance, savedPerts, cc2
 

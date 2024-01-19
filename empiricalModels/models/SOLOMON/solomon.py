@@ -17,7 +17,7 @@ from tools.spectralAnalysis import spectralIrradiance
 solomonTable = np.array([
         [1, 0.5, 4, 5.010e1, 0, 2.948e2, 5.010e1, 6.240e-1, 3.188e4, 7.847e5],
         [2, 4, 8, 1.0e4, 0, 7.6e3, 1.0e4, 3.710e-1, 3.643e4, 8.968e5],
-        [3, 8, 18, 2e-6, 0, 4.6e5, 2.0e6, 2.0e-1, 5.485e6, 1.046e8],
+        [3, 8, 18, 2.0e-6, 0, 4.6e5, 2.0e6, 2.0e-1, 5.485e6, 1.046e8],
         [4, 18, 32, 7.600e6, 7.470e5, 9.220e5, 2.850e7, 6.247e-2, 6.317e6, 9.234e7],
         [5, 32, 70, 1.659e8, 6.623e7, 4.293e6, 5.326e8, 1.343e-2, 3.710e8, 1.475e9],
         [6, 70, 155, 4.012e8, 1.662e8, 5.678e6, 1.270e9, 9.182e-3, 1.023e9, 3.752e9],
@@ -57,7 +57,7 @@ def solomon(F107, F107A):
         Values of the solar EUV irradiance in 23 distinct wavelength bands.
     """
     # Instantiate the output data:
-    if type(F107) != list or type(F107) != np.ndarray:
+    if type(F107) == list or type(F107) != np.ndarray:
         F107 = np.array([F107])
         F107A = np.array([F107A])
         solomonFlux = np.zeros((1, solomonTable.shape[0]))
@@ -66,22 +66,22 @@ def solomon(F107, F107A):
         solomonFlux = np.zeros((len(F107), solomonTable.shape[0]))
         solomonIrr = np.zeros((len(F107), solomonTable.shape[0]))
 
-    # Calculate the model coefficients:
+    # Calculate the model coefficients (for every F107, F107A pair):
     r1 = 0.0138*(F107 - 71.5) + 0.005*(F107 - F107A + 3.9)
     r2 = 0.5943*(F107 - 71.5) + 0.381*(F107 - F107A + 3.9)
 
     # Loop across every F107, F107A pair:
-    for i in range(len(F107)):
-        # Loop across every bin and fill in the data:
-        for j in range(solomonIrr.shape[1]):
-            waves = solomonTable[j, 0]
-            wavel = solomonTable[j, 1]
-            dwav = wavel - waves
-            mid = 0.5*(waves + wavel)
-            flux = (solomonTable[j, 2] + r1*solomonTable[j, 3] + r2*solomonTable[j, 4])/1e-4 # Units of m^-2 s^-1
-            irradiance = spectralIrradiance(flux, mid, dwav)
-            solomonFlux[:, j] = flux
-            solomonIrr[:, j] = irradiance
+    # for i in range(len(F107)):
+    # Loop across every bin and fill in the data:
+    for j in range(solomonIrr.shape[1]):
+        waves = solomonTable[j, 0]
+        wavel = solomonTable[j, 1]
+        dwav = wavel - waves
+        mid = 0.5*(waves + wavel)
+        flux = (solomonTable[j, 3] + r1*solomonTable[j, 4] + r2*solomonTable[j, 5])/1e-4 # Units of m^-2 s^-1
+        irradiance = spectralIrradiance(flux, mid, dwav)
+        solomonFlux[:, j] = np.squeeze(flux)
+        solomonIrr[:, j] = np.squeeze(irradiance)
 
     return solomonFlux, solomonIrr
 #-----------------------------------------------------------------------------------------------------------------------

@@ -39,7 +39,7 @@ euvacTable = np.array([
     [15, 450, 500, 0.285, 2.0225e-2],
     [16, 500, 550, 0.452, 8.7583e-3],
     [17, 554.37, 554.37, 0.720, 3.2667e-3],
-    [18, 584.33, 584.33, .270, 5.1583e-3],
+    [18, 584.33, 584.33, 1.270, 5.1583e-3],
     [19, 550, 600, 0.357, 3.6583e-3],
     [20, 609.76, 609.76, 0.530, 1.6175e-2],
     [21, 629.73, 629.73, 1.590, 3.3250e-3],
@@ -78,7 +78,7 @@ def refSpec(i):
     :return: A_i: float
         The scaling factor for the wavelength interval.
     """
-    lookUpIdx = np.where(euvacTable == i)[0]
+    lookUpIdx = np.where(euvacTable[:, 0] == i)[0]
     F74113_i = euvacTable[lookUpIdx, 3][0]*(1e13) # Multiply by 1e13 to obtain photons m^-2 s^-1.
     A_i = euvacTable[lookUpIdx, 4][0]
     return F74113_i, A_i
@@ -109,7 +109,7 @@ def euvac(F107, F107A):
         if dWav == 0:
             dWav = None
         F74113_i, A_i = refSpec(i+1)
-        fluxFactor = (1. + A_i*(P-80))
+        fluxFactor = (1. + A_i*(P-80.))
         # if fluxFactor < 0.8:
             # fluxFactor = 0.8
         photonFlux = (F74113_i)*fluxFactor
@@ -120,67 +120,7 @@ def euvac(F107, F107A):
             if photonFlux < 0:
                 photonFlux = 0
         euvacFlux[:, i] = photonFlux
-        euvacIrr[:, i] = spectralIrradiance(photonFlux, wavelength=wav, dWavelength=dWav)
+        euvacIrr[:, i] = spectralIrradiance(photonFlux, wavelength=wav)
     return euvacFlux, euvacIrr
 #-----------------------------------------------------------------------------------------------------------------------
-
-#-----------------------------------------------------------------------------------------------------------------------
-# Execution:
-if __name__ == '__main__':
-    F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
-    # F107A = averageF107(F107)
-    myFlux, myIrr = euvac(F107, F107)
-    # myIrr = spectralIrradiance(myFlux, 400, 5)
-    # flux = euvac(200, 200)
-    # F107 = np.array([randrange(200) for element in range(6000)])
-
-    # EUVAC wavelengths (ranges):
-    # euvacShort = np.array([50., 100., 150., 200., 250., 300., 350., 400., 450., 500., 550., 600., 650., 700., 750.,
-    #                        800., 850., 900., 950., 1000.])
-    # euvacLong = np.array([ 100.,  150.,  200.,  250.,  300.,  350.,  400.,  450.,  500., 550.,  600.,  650.,  700.,
-    #                        750.,  800.,  850.,  900.,  950., 1000., 1050.])
-    # middleWavelengths = 0.5*(euvacLong + euvacShort)
-    # differences = euvacLong - euvacShort
-
-    # Sanity check between fluxes/irradiances from EUVAC and those from Ridley's method:
-    # validInds = np.array([0, 1, 2, 3, 6, 9, 11, 12, 14, 15, 18, 21, 22, 24, 28, 29, 30, 31, 33, 36])
-    # import matplotlib.pyplot as plt
-    # import matplotlib
-    # matplotlib.use('Qt5Agg')  # Install Pyqt5
-    # from neuvac import ridleyEUV
-    # rFlux = ridleyEUV(F107, F107A, bandLim=True)
-    # eFlux = euvac(F107, F107A)
-    # # Extract the bands for the singular wavelengths:
-    # rFlux = rFlux[:, validInds]
-    # eFlux = eFlux[:, validInds]
-    # band = 5 # 36
-    # for i in range(band+1):
-    #     fig, axs = plt.subplots(2, 1)
-    #     par1 = axs[0].twinx()
-    #     par2 = axs[1].twinx()
-    #
-    #     axs[0].set_xlabel('Time (hours)')
-    #     axs[0].set_ylabel('Flux')
-    #     par1.set_ylabel('sfu')
-    #
-    #     # Fluxes
-    #     axs[0].plot(eFlux[:, i], 'b-', alpha=0.5, label='EUVAC')
-    #     axs[0].plot(rFlux[:, i], 'c-', label='Ridley')
-    #
-    #     # Irradiances
-    #     eIrr = spectralIrradiance(eFlux[:, i], middleWavelengths[i], differences[i])
-    #     rIrr = spectralIrradiance(rFlux[:, i], middleWavelengths[i], differences[i])
-    #     axs[1].set_xlabel('Time (hours)')
-    #     axs[1].set_ylabel('Irradiance')
-    #     axs[1].plot(eIrr, 'b-', alpha=0.5, label='EUVAC')
-    #     axs[1].plot(rIrr, 'c-', label='Ridley')
-    #     par2.set_ylabel('sfu')
-    #
-    #     #par1.plot(F107, 'g-', label='F10.7')
-    #     par1.plot(F107A, 'r-', label='F10.7A')
-    #     par2.plot(F107A, 'r-', label='F10.7A')
-    #
-    #     axs[0].legend(loc='best')
-    #     axs[1].legend(loc='best')
-    #     plt.show()
 

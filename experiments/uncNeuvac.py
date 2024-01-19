@@ -62,7 +62,7 @@ if __name__=="__main__":
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
     # FISM2 Results:
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
-    myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59)
+    myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebin the data:
     myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
                                                                     zero=False)
