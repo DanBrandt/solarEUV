@@ -32,25 +32,32 @@ solomonTable = np.array([
         [15, 798, 913, 4.661e9, 4.213e9, 0, 3.655e9, 5.261e-3, 5.138e9, 8.562e9],
         [16, 798, 913, 1.020e9, 1.020e9, 0, 8.448e8, 5.437e-3, 1.306e9, 2.157e9],
         [17, 913, 975, 5.441e8, 4.187e8, 0, 3.818e8, 4.915e-3, 8.343e8, 1.373e9],
-        [18, 913, 975, 1.483e9, 1.307e9, 0, 1.028e9, 4.955e-3, 1.866e+09, 2.862e9],
+        [18, 913, 975, 1.483e9, 1.307e9, 0, 1.028e9, 4.955e-3, 1.866e9, 2.862e9],
         [19, 913, 975, 8.642e8, 8.440e8, 0, 7.156e8, 4.422e-3, 6.840e8, 1.111e9],
         [20, 975, 98.7, 6.056e9, 3.671e9, 0, 4.482e9, 3.950e-3, 4.139e9, 6.801e9],
         [21, 987, 1027, 5.569e9, 4.984e9, 0, 4.419e9, 5.021e-3, 6.274e9, 1.019e10],
         [22, 1027, 1050, 6.309e9, 5.796e9, 0, 4.235e9, 4.825e-3, 4.389e9, 7.153e9],
     ])
+solomonBands = {
+    'short': solomonTable[:, 1],
+    'long': solomonTable[:, 2]
+}
 solomonBandWidths = np.array([3.5, 0.4, 1., 1.4, 3.8, 8.5, 6.9, 6.6, 3., 22., 11., 14.8, 14.8, 11.5, 11.5, 11.5, 6.2,
                               6.2, 6.2, 1.2,  4., 2.3 , 16.], dtype=np.float32)*10.
 # The tables above are in units of Angstroms - source is Table A1 from Solomon and Qian 2005.
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
-def solomon(F107, F107A):
+def solomon(F107, F107A, model='HFG'):
     """
     Compute the solar EUV irradiance in 23 standard bands.
     :param F107: ndarray
         Values of the F10.7 solar flux.
     :param F107A: ndarray
         Values of the 81-day averaged solar flux, centered on the present day.
+    :param model: str
+        Either 'HFG' or 'EUVAC'. Controls whether or not the empirical EUV data returned corresponds to the HFG model or
+        the EUVAC model.
     :return solomonFlux: ndarray
         Values of the solar radiant flux in 23 distinct wavelength bands.
     :return solomonIrr: ndarray
@@ -70,18 +77,29 @@ def solomon(F107, F107A):
     r1 = 0.0138*(F107 - 71.5) + 0.005*(F107 - F107A + 3.9)
     r2 = 0.5943*(F107 - 71.5) + 0.381*(F107 - F107A + 3.9)
 
+    # Compute P:
+    P = 0.5*(F107  + F107A)
+
     # Loop across every F107, F107A pair:
     # for i in range(len(F107)):
     # Loop across every bin and fill in the data:
     for j in range(solomonIrr.shape[1]):
         waves = solomonTable[j, 0]
         wavel = solomonTable[j, 1]
-        dwav = wavel - waves
+        # dwav = wavel - waves
         mid = 0.5*(waves + wavel)
-        flux = (solomonTable[j, 3] + r1*solomonTable[j, 4] + r2*solomonTable[j, 5])/1e-4 # Units of m^-2 s^-1
-        irradiance = spectralIrradiance(flux, mid, dwav)
+        if model == 'EUVAC':
+            flux = solomonTable[j, 6] * (1. + solomonTable[j, 7]*(P - 80))
+        else:
+            flux = (solomonTable[j, 3] + r1*solomonTable[j, 4] + r2*solomonTable[j, 5])/1e-4 # Units of m^-2 s^-1
+        irradiance = spectralIrradiance(flux, mid)
         solomonFlux[:, j] = np.squeeze(flux)
         solomonIrr[:, j] = np.squeeze(irradiance)
+
+    # mins = [np.nanmin(element) for element in solomonIrr.T]
+    # np.where(np.asarray(mins) < 0)
+    # 0, 1, 2, 3, 7 (EUVAC)
+    # 0, 1, 2, 3, 4, 7, 9 (HFG)
 
     return solomonFlux, solomonIrr
 #-----------------------------------------------------------------------------------------------------------------------
@@ -91,4 +109,4 @@ def solomon(F107, F107A):
 if __name__ == '__main__':
     F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
     # F107A = averageF107(F107)
-    myFlux, myIrr = solomon(F107, F107)
+    myFlux, myIrr = solomon(F107, F107, model='HFG')

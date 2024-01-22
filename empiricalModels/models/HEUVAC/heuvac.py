@@ -1,4 +1,7 @@
 # Run HEUVAC
+# HEUVAC was composed by Dr. Phil Chamberlin in 2006:
+# Richards, Philip G., Thomas N. Woods, and William K. Peterson. "HEUVAC: A new high resolution solar EUV proxy model."
+# Advances in Space Research 37.2 (2006): 315-322.
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports:
@@ -121,12 +124,11 @@ def heuvac(F107, F107A, torr=True):
     else:
         heuvacFlux = np.zeros((len(F107), 106))
         heuvacIrr = np.zeros((len(F107), 106))
+    os.chdir(directory)
     for i in tqdm(range(len(F107))):
         # Write the input file and run HEUVAC:
-        os.chdir(directory)
         writeInputFile(F107[i], F107A[i])
         os.system('./HEUVAC.exe')
-        os.chdir(topDir)
 
         # Read in the fluxes in the Torr bins (37 bins) and the user-specified bins:
         torrWav, torrFlux, torrIrr = getTorr(torrFluxFile)
@@ -135,11 +137,11 @@ def heuvac(F107, F107A, torr=True):
         # Collect the flux and irradiance into their respective arrays:
         if torr==True:
             heuvacFlux[i, :] = torrFlux
-            heuvacIrr[i, :] = torrIrr
+            heuvacIrr[i, :] = torrIrr*(1e4) # Convert to W/m^2
         else:
             heuvacFlux[i, :] = userFlux
-            heuvacIrr[i, :] = userIrr
-
+            heuvacIrr[i, :] = userIrr*(1e4) # Convert to W/m^2
+    os.chdir(topDir)
     if torr==True:
         heuvacWav = torrWav
     else:

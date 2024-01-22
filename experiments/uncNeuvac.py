@@ -1,4 +1,4 @@
-# This script performs uncertainty quantification on the NEUVAC model using a Kalman Filter.
+# This script performs uncertainty quantification on the NEUVAC model.
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports:

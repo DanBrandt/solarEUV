@@ -7,6 +7,7 @@
 import sys
 import numpy as np
 import matplotlib.pyplot as plt
+from datetime import datetime, timedelta
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -24,6 +25,18 @@ from empiricalModels.models.SOLOMON import solomon
 # Directory Management
 euv_folder = '../tools/EUV/'
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# TODO: Globally manage plotting settings:
+import matplotlib.pylab as pylab
+params = {'legend.fontsize': 'x-large',
+          'figure.figsize': (15, 5),
+         'axes.labelsize': 'x-large',
+         'axes.titlesize':'x-large',
+         'xtick.labelsize':'x-large',
+         'ytick.labelsize':'x-large'}
+pylab.rcParams.update(params)
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -61,19 +74,50 @@ if __name__=="__main__":
     euvacFlux, euvacIrr = euvac.euvac(F107, F107A)
 
     # Generate HEUVAC data:
-    heuvacFlux, heuvacIrr = heuvac.heuvac(F107, F107A, torr=True)
+    heuvac_wav, heuvacFlux, heuvacIrr = heuvac.heuvac(F107, F107A, torr=True)
 
     # Generate SOLOMON data and rebin everything into the SOLOMON bins:
-    solomonFlux, solomonIrr = solomon.solomon(F107, F107A)
+    solomonIrrFISM2 = toolbox.rebin(heuvac_wav, correspondingFism2Irr, resolution=solomon.solomonTable, zero=False)
+    solomonIrrNEUVAC = toolbox.rebin(heuvac_wav, perturbedNeuvacIrr, resolution=solomon.solomonTable, zero=False)
+    solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
+    solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
+    solomonIrrHEUVAC = toolbox.rebin(heuvac_wav, heuvacIrr, resolution=solomon.solomonTable, zero=False)
 
-    # 1A: Sample spectra during Low and High Solar Activity:
+    # 1A: Solar Spectra in Low and High Solar Activity
     euvacTable = euvac.euvacTable
     mids = 0.5 * (euvacTable[:, 1] + euvacTable[:, 2])
     xPos = np.append(euvacTable[:, 1], euvacTable[:, 2][-1])
     sortInds = np.argsort(xPos)
     xPosSorted = xPos[sortInds]
+    fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
+    # TODO: Plot wavelength ranges and singular wavelengths separately
+    # i: Low Activity:
+    chosenDateLow = datetime(1985, 11, 4) # Beginning of Solar Cycle 21
+    idx, val = toolbox.find_nearest(times, chosenDateLow)
+    ax[0].stairs(values=correspondingFism2Irr[idx, :][sortInds[:-1]], edges=xPosSorted, label='FISM2')
+    ax[0].stairs(values=perturbedNeuvacIrr[idx, :][sortInds[:-1]], edges=xPosSorted, label='NEUVAC')
+    ax[0].stairs(values=euvacIrr[idx, :][sortInds[:-1]], edges=xPosSorted, label='EUVAC')
+    ax[0].stairs(values=heuvacIrr[idx, :][sortInds[:-1]], edges=xPosSorted, label='HEUVAC')
+    ax[0].set_yscale('log')
+    ax[0].legend(loc='best')
+    ax[0].set_xlabel('Wavelength ($\mathrm{\AA}$)')
+    ax[0].set_ylabel('Irradiance (W/m$^2$)')
+    ax[0].set_title('Solar Spectra during Low Solar Activity ('+str(chosenDateLow)[:-9]+')')
+    # ii: High Activity:
+    chosenDateHigh = datetime(1991, 1, 31) # Peak of Solar Cycle 21
+    idx, val = toolbox.find_nearest(times, chosenDateHigh)
+    chosenDateLow = datetime(1985, 11, 4)  # Beginning of Solar Cycle 21
+    ax[1].stairs(values=correspondingFism2Irr[idx, :][sortInds[:-1]], edges=xPosSorted, label='FISM2')
+    ax[1].stairs(values=perturbedNeuvacIrr[idx, :][sortInds[:-1]], edges=xPosSorted, label='NEUVAC')
+    ax[1].stairs(values=euvacIrr[idx, :][sortInds[:-1]], edges=xPosSorted, label='EUVAC')
+    ax[1].stairs(values=heuvacIrr[idx, :][sortInds[:-1]], edges=xPosSorted, label='HEUVAC')
+    ax[1].set_yscale('log')
+    ax[1].legend(loc='best')
+    ax[1].set_xlabel('Wavelength ($\mathrm{\AA}$)')
+    ax[1].set_ylabel('Irradiance (W/m$^2$)')
+    ax[1].set_title('Solar Spectra during High Solar Activity ('+str(chosenDateHigh)[:-9]+')')
 
-    # 1B: Sample TIME SERIES during Low and High Solar Activity (3 bands only):
+    # 1B: Plot sample TIME SERIES during Low and High Solar Activity (3 bands only):
 
     # ------------------------------------------------------------------------------------------------------------------
     # 2: PERTURBATIONS
