@@ -28,7 +28,10 @@ the STAN BANDS.
 
 There are few folders in this package:
 * **empiricalModels**: Contains code and data for EUVAC, HEUVAC, and SOLOMON, as well as FISM.
-* **experiments**: Contains code and figures related to the publication associated with NEUVAC.
+* **experiments**: Contains code and figures related to the publication associated with NEUVAC. In this folder, the file
+_fitNeuvac.py_ s used for actually performing the NEUVAC fits between F10.7, F10.7A, and FISM2, while _uncNeuvac.py_ 
+contains code for computing the correlation matrix used to enable running NEUVAC ensembles, as well as generating plots 
+of the squared difference between NEUVAC and FISM2 in different bands.
 * **measurements**: Contains data from SDO/EVE and TIMED/SEE. Much of the data here isn't used at all.
 * **NEUVAC**: Contains the code for running NEUVAC.
 * **solarIndices**: Contains F10.7 solar index data, from both OMNIWeb and Penticton.

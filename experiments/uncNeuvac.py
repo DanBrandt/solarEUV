@@ -164,15 +164,14 @@ if __name__=="__main__":
         axs[1].plot(sample2, toolbox.linear(sample2, *popt2), 'r-', label='R='+str(np.round(pearsonR2[0], 2)))
         axs[1].set_xlim(xlims2)
         axs[1].set_yscale('log')
-        axs[1].set_xlabel('NEUVAC')
+        axs[1].set_xlabel('NEUVAC (W/m$^2$)')
         axs[1].set_ylabel('(NEUVAC - FISM2)$^2$ (W/m$^2$)')
         axs[1].legend(loc='best')
         axs[1].set_xticklabels(axs[0].get_xticklabels(), rotation=45, ha='right')
-        fig.suptitle('FISM2 and NEUVAC Correlation and Squared Differences')
+        fig.suptitle('FISM2 and NEUVAC Correlation and Squared Differences ('+str(mids[i])+' $\mathrm{\AA}$)')
         plt.tight_layout()
         plt.savefig('Uncertainty/correlation_sqdf_band_'+str(i+1)+'.png', dpi=300)
         pearsonVals.append([pearsonR[0], pearsonR2[0]])
-
     # ------------------------------------------------------------------------------------------------------------------
     # Exit with a zero error code:
     sys.exit(0)

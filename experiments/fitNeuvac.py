@@ -113,5 +113,7 @@ if __name__=="__main__":
     #     plt.legend(loc='best')
     #     plt.title('Irradiance Time Series at :'+str(np.round(myIrrDataWavelengthsFISM2[i],2))+' Angstroms')
 
+    # TODO: DO the same as the above, but for the FISM2 STAN BANDS
+
     print('NEUVAC model fitting complete.')
 #-----------------------------------------------------------------------------------------------------------------------
