@@ -3,6 +3,18 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level imports:
 import numpy as np
+from tqdm import tqdm
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Global Variables
+neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
+neuvacStatsFiles = ['../experiments/corMat.pkl', '../experiments/sigma_NEUVAC.pkl']
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
+# Local Imports
+from NEUVAC.src import neuvac
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -48,3 +60,48 @@ def spectralFlux(irradiance, wavelength): #, dWavelength=10):
     photonEnergy = (h * c) / (wavelength * 1e-10)
     photonFlux = irradiance / photonEnergy # (irradiance * dWavelength * 0.1) / photonEnergy
     return photonFlux
+
+def irradiance_ensemble(F107, F107A, iterations=100, model='NEUVAC'):
+    """
+    Given F10.7 and F10.7A, run an ensemble of modeled EUV irradiances. Return the ensemble average, all of the members,
+    and the standard deviations of the ensemble.
+    :param F107: float or ndarray
+        Solar flux at 10.7 cm.
+    :param F107A: float or ndarray
+        81 day-averaged solar flux at 10.7, centered on the current day.
+    :param iterations: int
+        The number of ensemble members.
+    :param model: str
+        The model with which to run the ensemble. May be 'NEUVAC', 'NEUVAC-E', 'EUVAC', or 'HEUVAC'. If the model is in
+        the STAN BANDS, valid arguments include 'NEUVAC-S', 'EUVAC-S', 'HEUVAC-S', or 'HFG'. 'NEUVAC' refers to the 59-
+        band base model of NEUVAC, while 'NEUVAC-E' refers to the 37-band base model of NEUVAC.
+    :return ensemble: ndarray
+        A 3D array where each 2D element is an ensemble.
+    :return ensemble_avg: ndarray
+        A 2D array of the ensemble average of irradiances.
+    :return ensemble_stddev: ndarray
+        A 2D array of the ensemble standard deviations.
+    """
+    # Get the shape of the third dimension
+    if model[-1] == 'S':
+        lastDim = 22
+    elif model == 'NEUVAC':
+        lastDim = 59
+    else:
+        lastDim = 37
+    # Instantiate the ensemble:
+    ensemble = np.zeros((iterations, len(F107), lastDim))
+    # Fill the ensemble:
+    for i in tqdm(range(iterations)):
+        if model=='NEUVAC-E':
+            _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bandLim=True, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
+        elif model=='NEUVAC':
+            _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bandLim=False, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
+        else:
+            pass # TODO: Add functionality for the other models.
+        ensemble[i, :, :] = perturbedEuvIrradiance
+    # Compute the ensemble average and ensemble standard deviations:
+    ensemble_average = np.nanmean(ensemble, axis=0)
+    ensemble_stddev = np.nanstd(ensemble, axis=0)
+    return ensemble, ensemble_average, ensemble_stddev
+#-----------------------------------------------------------------------------------------------------------------------

@@ -19,6 +19,7 @@ from NEUVAC.src import neuvac
 from empiricalModels.models.EUVAC import euvac
 from empiricalModels.models.HEUVAC import heuvac
 from empiricalModels.models.SOLOMON import solomon
+from tools.spectralAnalysis import irradiance_ensemble
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -67,6 +68,7 @@ if __name__=="__main__":
     correspondingFism2Irr = fism2Irr[correspondingIndsFISM2, :]
 
     # Generate NEUVAC data:
+    ensemble_NeuvacIrr, ensemble_average_NeuvacIrr, ensemble_stddev_NeuvacIrr = irradiance_ensemble(F107, F107A, iterations=100, model='NEUVAC-E')
     neuvacIrr, perturbedNeuvacIrr, savedPerts, cc2 = neuvac.neuvacEUV(F107, F107A, bandLim=True, tableFile=neuvac_tableFile,
                                                                       statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
