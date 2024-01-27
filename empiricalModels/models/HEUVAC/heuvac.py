@@ -21,7 +21,8 @@ userIonizationFile = 'XS-User-bins-10A.txt'
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports:
-from tools.spectralAnalysis import spectralIrradiance
+import tools.toolbox
+import tools.spectralAnalysis
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -64,7 +65,7 @@ def getTorr(fluxFile):
             if i > 0:
                 wavs[j] = float(line.split()[1])
                 fluxes[j] = float(line.split()[-1])
-                irrs[j] = spectralIrradiance(fluxes[j], wavs[j])
+                irrs[j] = tools.spectralAnalysis.spectralIrradiance(fluxes[j], wavs[j])
                 j += 1
             i += 1
     # The arrays will have values from largest to smallest - they should be flipped before being returned:
@@ -101,7 +102,7 @@ def getFlux(userFile):
             i += 1
     return wav, flux, irr
 
-def heuvac(F107, F107A, torr=True):
+def heuvac(F107, F107A, torr=True, statsFiles=None):
     """
     Call the HEUVAC Fortran code for each F10.7, F10.7A pair.
     :param F107: arraylike
@@ -124,10 +125,35 @@ def heuvac(F107, F107A, torr=True):
     else:
         heuvacFlux = np.zeros((len(F107), 106))
         heuvacIrr = np.zeros((len(F107), 106))
+    perturbedEuvIrradiance = np.zeros_like(heuvacIrr)
+    savedPerts = np.zeros_like(heuvacIrr)
+    # Include statistical data for calculating uncertainties via perturbations:
+    corMatFile = statsFiles[0]  # '../../../experiments/corMatEUVAC.pkl'
+    corMatHEUVAC = tools.toolbox.loadPickle(corMatFile)
+    sigmaFileHEUVAC = statsFiles[1]  # '../../../experiments/sigma_EUVAC.pkl'
+    STDHeuvacResids = tools.toolbox.loadPickle(sigmaFileHEUVAC)
     os.chdir(directory)
+    # Loop across all of the F10.7 values:
     for i in tqdm(range(len(F107))):
         # Write the input file and run HEUVAC:
         writeInputFile(F107[i], F107A[i])
+        P_n = []
+        A_j_vals = []
+        # Loop across all of the bands to obtain perturbations:
+        for j in range(37):
+            # Percentage perturbation:
+            P_j = np.random.normal(0, 1.0)
+            P_n.append(P_j)
+            P_1 = P_n[0]
+            # Normalized Correlated Perturbation:
+            C_j1 = corMatHEUVAC[0, j]
+            N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
+            # Actual Normalized Correlated Perturbation:
+            A_j = STDHeuvacResids[j] * N_j
+            A_j_vals.append(A_j)
+            savedPerts[i, j] = A_j
+
+        # Run base HEUVAC:
         os.system('./HEUVAC.exe')
 
         # Read in the fluxes in the Torr bins (37 bins) and the user-specified bins:
@@ -137,17 +163,31 @@ def heuvac(F107, F107A, torr=True):
         # Collect the flux and irradiance into their respective arrays:
         if torr==True:
             heuvacFlux[i, :] = torrFlux
-            heuvacIrr[i, :] = torrIrr*(1e4) # Convert to W/m^2
+            irrRes = torrIrr*(1e4) # Convert to W/m^2
+            heuvacIrr[i, :] = irrRes
+            perturbedIrr = irrRes + np.asarray(A_j_vals)
+            for k in range(perturbedIrr.shape[0]):
+                if perturbedIrr[k] < 0:
+                    perturbedIrr[k] = 0
+            perturbedEuvIrradiance[i, :] = perturbedIrr
         else:
             heuvacFlux[i, :] = userFlux
             heuvacIrr[i, :] = userIrr*(1e4) # Convert to W/m^2
+            # TODO: Add perturbation functionality for variable bin widths
     os.chdir(topDir)
     if torr==True:
         heuvacWav = torrWav
     else:
         heuvacWav = userWav
 
-    return heuvacWav, heuvacFlux, heuvacIrr
+    # Generate a correlation matrix of the perturbations:
+    cc2 = np.zeros((37, 37))
+    for iW1 in range(37):
+        for iW2 in range(37):
+            cc = tools.toolbox.get_cc(savedPerts[:, iW1], savedPerts[:, iW2])
+            cc2[iW1, iW2] = cc
+
+    return heuvacWav, heuvacFlux, heuvacIrr, perturbedEuvIrradiance, savedPerts, cc2
 #-----------------------------------------------------------------------------------------------------------------------
 
 

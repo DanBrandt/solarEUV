@@ -5,11 +5,13 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level imports:
 import numpy as np
+from tqdm import tqdm
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports:
 from tools.spectralAnalysis import spectralIrradiance
+import tools.toolbox
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -82,7 +84,7 @@ def refSpec(i):
     A_i = euvacTable[lookUpIdx, 4][0]
     return F74113_i, A_i
 
-def euvac(F107, F107A):
+def euvac(F107, F107A, statsFiles=None):
     """
     Compute the solar flux from F10.7, according to the EUVAC model. Return the solar flux across 37 wavelength
     bands in units of photons m^-2 s^-1.
@@ -102,24 +104,59 @@ def euvac(F107, F107A):
     else:
         euvacFlux = np.zeros((1, 37))
         euvacIrr = np.zeros((1, 37))
-    for i in range(37):
-        wav = 0.5*(euvacTable[i, 2] + euvacTable[i, 1])
-        dWav = euvacTable[i, 2] - euvacTable[i, 1]
-        if dWav == 0:
-            dWav = None
-        F74113_i, A_i = refSpec(i+1)
-        fluxFactor = (1. + A_i*(P-80.))
-        # if fluxFactor < 0.8:
-            # fluxFactor = 0.8
-        photonFlux = (F74113_i)*fluxFactor
-        # If P-80 is negative, set the flux to ZERO.
-        try:
-            photonFlux[photonFlux < 0] = 0
-        except:
-            if photonFlux < 0:
-                photonFlux = 0
-        euvacFlux[:, i] = photonFlux
-        euvacIrr[:, i] = spectralIrradiance(photonFlux, wavelength=wav)
-    return euvacFlux, euvacIrr
+        P = np.array([P])
+    perturbedEuvIrradiance = np.zeros_like(euvacIrr)
+    savedPerts = np.zeros_like(euvacIrr)
+    # Include statistical data for calculating uncertainties via perturbations:
+    corMatFile = statsFiles[0]  # '../../../experiments/corMatEUVAC.pkl'
+    corMatEUVAC = tools.toolbox.loadPickle(corMatFile)
+    sigmaFileEUVAC = statsFiles[1]  # '../../../experiments/sigma_EUVAC.pkl'
+    STDEuvacResids = tools.toolbox.loadPickle(sigmaFileEUVAC)
+    for i in tqdm(range(euvacIrr.shape[0])):
+        # Loop across the F10.7 values
+        k = 0
+        P_n = []
+        # Loop across all of the bands:
+        for j in range(37):
+            # Percentage perturbation:
+            P_j = np.random.normal(0, 1.0)
+            P_n.append(P_j)
+            P_1 = P_n[0]
+            # Normalized Correlated Perturbation:
+            C_j1 = corMatEUVAC[0, j]  # Only consider correlation with the first wavelength bin
+            N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
+            # Actual Normalized Correlated Perturbation:
+            A_j = STDEuvacResids[j] * N_j
+            # Compute the flux:
+            wav = 0.5*(euvacTable[j, 2] + euvacTable[j, 1])
+            # dWav = euvacTable[j, 2] - euvacTable[j, 1]
+            # if dWav == 0:
+            #     dWav = None
+            F74113_i, A_i = refSpec(j+1)
+            fluxFactor = (1. + A_i*(P[i]-80.))
+            # if fluxFactor < 0.8:
+                # fluxFactor = 0.8
+            photonFlux = (F74113_i)*fluxFactor
+            # If P-80 is negative, set the flux to ZERO.
+            try:
+                photonFlux[photonFlux < 0] = 0
+            except:
+                if photonFlux < 0:
+                    photonFlux = 0
+            euvacFlux[i, k] = photonFlux
+            irrRes = spectralIrradiance(photonFlux, wavelength=wav)
+            euvacIrr[i, k] = irrRes
+            perturbedEuvIrradiance[i, k] = irrRes + A_j
+            savedPerts[i, j] = A_j
+            k += 1
+
+    # Generate a correlation matrix of the perturbations:
+    cc2 = np.zeros((37, 37))
+    for iW1 in range(37):
+        for iW2 in range(37):
+            cc = tools.toolbox.get_cc(savedPerts[:, iW1], savedPerts[:, iW2])
+            cc2[iW1, iW2] = cc
+
+    return euvacFlux, euvacIrr, perturbedEuvIrradiance, savedPerts, cc2
 #-----------------------------------------------------------------------------------------------------------------------
 

@@ -10,12 +10,12 @@ import numpy as np
 from scipy.optimize import curve_fit, minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta
+from tqdm import tqdm
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local imports:
 import tools.toolbox
-from tools.toolbox import find_nearest
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -108,8 +108,6 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
     :param statsFiles: list
         A 2 element list where the first element is a file containing the 59x59 correlation matrix and the second
         element is a file containing the 1x59 standard deviation values for NEUVAC.
-    :param calibrate: bool
-        If True, applies empirically-determined correction factors to specific wavelength bands.
     :return euvIrradiance: ndarray
         A nxm ndarray where n is the number of EUV irradiance values and m is the number of wavelength bands.
     :return perturbedEuvIrradiance: ndarray
@@ -148,7 +146,7 @@ def neuvacEUV(f107, f107a, bandLim=False, tableFile=None, statsFiles=None):
     nTimes = len(f107)
     nWaves = solarFlux.shape[1]
     savedPerts = np.zeros((nTimes, nWaves))
-    for i in range(len(f107)):
+    for i in tqdm(range(len(f107))):
         # Loop across the wavelengths (59 conventional wavelengths):
         k = 0
         P_n = []
@@ -240,7 +238,7 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
     f107SubsetNearest = []
     f107ASubsetNearest = []
     for i in range(len(irrTimesSubset)):
-        coLocatedInfo = find_nearest(f107TimesSubset, irrTimesSubset[i])
+        coLocatedInfo = tools.toolbox.find_nearest(f107TimesSubset, irrTimesSubset[i])
         f107TimesSubsetNearest.append(f107TimesSubset[coLocatedInfo[0]])
         f107SubsetNearest.append(f107Subset[coLocatedInfo[0]])
         f107ASubsetNearest.append(f107ASubset[coLocatedInfo[0]])
@@ -293,9 +291,9 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
         fitParams.append(fitResult0[0])
         # Saving the figure:
         if label is not None:
-            plt.savefig('Fitting/'+'NEUVAC_' + label.replace('/','-') + '_fit_'+str(wavelengths[j]).replace('.','_')+ '_A.png', dpi=300)
+            plt.savefig('Fitting/Base/'+'NEUVAC_' + label.replace('/','-') + '_fit_'+str(wavelengths[j]).replace('.','_')+ '_A.png', dpi=300)
         else:
-            plt.savefig('Fitting/'+'NEUVAC_fit_'+str(wavelengths[j]).replace(',','_')+ '_A.png', dpi=300)
+            plt.savefig('Fitting/Base/'+'NEUVAC_fit_'+str(wavelengths[j]).replace(',','_')+ '_A.png', dpi=300)
     fitParams = np.asarray(fitParams)
     return fitParams
 #-----------------------------------------------------------------------------------------------------------------------

@@ -20,6 +20,7 @@ import scipy.integrate as integ
 from scipy import interpolate
 from urllib.request import urlretrieve
 from math import log10, floor
+from scipy import stats
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -1015,4 +1016,65 @@ def squareDiff(x, y):
     for i in range(len(x)):
         res.append((y[i] - x[i])**2)
     return np.asarray(res)
+
+def mape(x, y):
+    """
+    Compute the mean absolute percentage error between two arrays.
+    :param x: arraylike
+        The modeled values.
+    :param y: arraylike
+        The actual (true) values.
+    :return mape:
+        The mean absolute percentage error.
+    """
+    n = len(x)
+    quantity = np.abs(np.divide(np.subtract(np.asarray(y), np.asarray(x)), np.asarray(y)))
+    mape = (1./n) * np.sum(quantity)
+    return mape
+
+def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None):
+    """
+    Given data and bins, plot a histogram.
+    :param data: arraylike
+        1D data to make a histogram with.
+    :param bins: arraylike
+        The bins with which to bin the data.
+    :param color: str
+        The color of the histogram data that will be in the plot.
+    :param saveLoc: str
+        A string containing the location with which to save the file.
+    :param labels: list
+        A 3-element list containing string for the xlabel, ylabel, and the title.
+    :param logScale: bool
+        If 'x', scales the x axis on a log scale. If 'y', scales the y axis on a log scale. If 'both', scales both.
+    """
+    fig = plt.figure()
+    plt.hist(data, bins=bins, density=True, color=color, label='Data')
+    validLocs = ~np.isnan(data)
+    xVals = np.linspace(bins[0], bins[-1], 500)
+    a, loc, scale = stats.skewnorm.fit(data[validLocs])
+    p = stats.skewnorm.pdf(xVals, a, loc, scale)
+    plt.plot(xVals, p, 'k', linewidth=2, label=r'Fit: $\alpha$='+str(np.round(a, 2))+r', $\xi$='+str(np.round(loc, 2))+r', $\omega$='+str(np.round(scale, 2)))
+    plt.xlabel(labels[0])
+    plt.ylabel(labels[1])
+    plt.title(labels[2])
+    plt.legend(loc='best')
+    plt.tick_params(axis='both')
+    plt.xlim([-25., 25.])
+    if logScale == 'x':
+        plt.xscale('log')
+    elif logScale == 'y':
+        plt.yscale('log')
+    elif logScale == 'both':
+        plt.xscale('log')
+        plt.yscale('log')
+    else:
+        pass
+    plt.axvline(x=0, color='gray', linestyle='--', alpha=0.8)
+    print('Skewnormal Parameters: Alpha=' + str(a) + ', Loc=' + str(loc) + ', Scale=' + str(scale)+', Kurtosis='+
+          str(stats.kurtosis(data[validLocs]))+', Skew='+str(stats.skew(data[validLocs])))
+    if saveLoc:
+        plt.savefig(saveLoc, dpi=300)
+        print('Saved figure to '+saveLoc)
+    return fig
 #-----------------------------------------------------------------------------------------------------------------------

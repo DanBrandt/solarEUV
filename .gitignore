@@ -11,6 +11,13 @@ experiments/Figures/
 experiments/Fitting/
 experiments/Uncertainty/
 experiments/Perturbations/
+experiments/Results/
+experiments/corMatEUVAC.pkl
+experiments/corMatHEUVAC.pkl
+experiments/residualsArrayEUVAC.pkl
+experiments/residualsArrayHEUVAC.pkl
+experiments/sigma_EUVAC.pkl
+experiments/sigma_HEUVAC.pkl
 tools/myIrrFISM1.pkl
 tools/myIrrFISM2.pkl
 tools/myIrrUncFISM2.pkl

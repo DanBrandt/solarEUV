@@ -73,7 +73,7 @@ if __name__=="__main__":
     myIrrDataAllFISM2Fixed[myIrrDataAllFISM2Fixed <= 0 ] = np.nan
     # FISM2 data extends between 1947-02-14; 00:00 and 2023-08-29; 00:00.
 
-    # Perform a non-lienar fit between F10.7, F10.7A, and FISM2:
+    # Perform a non-linear fit between F10.7, F10.7A, and FISM2:
     neuvacTable = neuvac.neuvacFit([times, F107, F107A], myIrrTimesFISM2, myIrrDataAllFISM2Fixed, wavelengths=mids, label='FISM2')
 
     # Collect the coefficients into a table (so they can be assembled for use in a function):

@@ -10,11 +10,15 @@ from tqdm import tqdm
 # Global Variables
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
 neuvacStatsFiles = ['../experiments/corMat.pkl', '../experiments/sigma_NEUVAC.pkl']
+euvacStatsFiles = ['../experiments/corMatEUVAC.pkl', '../experiments/sigma_EUVAC.pkl']
+heuvacStatsFiles = ['../experiments/corMatHEUVAC.pkl', '../experiments/sigma_HEUVAC.pkl']
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
 from NEUVAC.src import neuvac
+from empiricalModels.models.EUVAC import euvac
+from empiricalModels.models.HEUVAC import heuvac
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -97,8 +101,13 @@ def irradiance_ensemble(F107, F107A, iterations=100, model='NEUVAC'):
             _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bandLim=True, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
         elif model=='NEUVAC':
             _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bandLim=False, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
+        elif model=='EUVAC':
+            _, _, perturbedEuvIrradiance, _, _ = euvac.euvac(F107, F107A, statsFiles=euvacStatsFiles)
+        elif model=='HEUVAC':
+            _, _, _, perturbedEuvIrradiance, _, _ = heuvac.heuvac(F107, F107A, statsFiles=heuvacStatsFiles)
+            # TODO: Add functionality for SOLOMON.
         else:
-            pass # TODO: Add functionality for the other models.
+            raise ValueError('The chosen model must either be: NEUVAC-E, NEUVAC, EUVAC, HEUVAC, or SOLOMON!')
         ensemble[i, :, :] = perturbedEuvIrradiance
     # Compute the ensemble average and ensemble standard deviations:
     ensemble_average = np.nanmean(ensemble, axis=0)
