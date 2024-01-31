@@ -56,20 +56,24 @@ To import any of the models (while in the top directory 'solarEUV') simply do as
 
 <ins>NEUVAC</ins>
 > from NEUVAC.src import neuvac
+> 
 > neuvacIrr, perturbedNeuvacIrr, _, _ = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile, statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl']
 
 <ins>EUVAC</ins>
 > from empiricalModels.models.EUVAC import euvac
-> euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A, statsFiles=['corMatEUVAC.pkl', 'sigma_EUVAC.pkl'])
 > 
+> euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A, statsFiles=['corMatEUVAC.pkl', 'sigma_EUVAC.pkl'])
+
 <ins>HEUVAC</ins>
 > from empiricalModels.models.HEUVAC import heuvac
+> 
 > heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl', 'sigma_HEUVAC.pkl'])
 
 <ins>SOLOMON</ins>
 > from empiricalModels.models.SOLOMON import solomon
+> 
 > solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
-OR
+>
 > solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
 
 Please note the following for the above:
@@ -79,11 +83,11 @@ Please note the following for the above:
 
 Running any of the EUV models is straightforward, as shown in the examples below.
 
-# Example 1: EUV Irradiance time series
+# Example 1: EUV Irradiance Time Series
 
 [Forthcoming]
 
-# Example 2: Running irradiance ensembles
+# Example 2: Running Irradiance Ensembles
 
 [Forthcoming]
 Due to the unique construction of NEUVAC, at present, we only recommend running ensembles for NEUVAC, and not any of the

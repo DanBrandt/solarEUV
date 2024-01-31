@@ -31,6 +31,8 @@ results_dir = 'Results/'
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# Global variables:
+solomonTable = solomon.solomonBands
 # Global Plotting Settings:
 import matplotlib.pylab as pylab
 params = {'legend.fontsize': 'large',
@@ -151,7 +153,7 @@ if __name__=="__main__":
         solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
 
         # for l in range(heuvacIrr.shape[1]):
-        #     l = 5
+        #     l = 19
         #     plt.figure()
         #     plt.fill_between(times, (ensemble_average_NeuvacIrrSolomon-ensemble_stddev_NeuvacIrrSolomon)[:, l], (ensemble_average_NeuvacIrrSolomon+ensemble_stddev_NeuvacIrrSolomon)[:, l], color='gray', alpha=0.8)
         #     plt.plot(times, ensemble_average_NeuvacIrrSolomon[:, l], color='k')
@@ -239,7 +241,7 @@ if __name__=="__main__":
     axs[0, 0].plot(lowSolarTimes, correspondingFism2Irr[lowSolarTimeInds, 0], label='FISM2', lw=3)
     axs[0, 0].plot(lowSolarTimes, ensemble_average_NeuvacIrr[lowSolarTimeInds, 0], label='NEUVAC (n='+str(iterations)+')', lw=3)
     axs[0, 0].plot(lowSolarTimes, euvacIrr[lowSolarTimeInds, 0], label='EUVAC', lw=3)
-    axs[0, 0].plot(lowSolarTimes, heuvacIrr[lowSolarTimeInds, 0], label='EUVAC', lw=3)
+    axs[0, 0].plot(lowSolarTimes, heuvacIrr[lowSolarTimeInds, 0], label='HEUVAC', lw=3)
     axs[0, 0].set_ylabel('Irradiance (W/m$^2$)')
     axs[0, 0].set_title('75 $\mathrm{\AA}$')
     axs[0, 0].legend(loc='best')
@@ -311,7 +313,7 @@ if __name__=="__main__":
     plt.title('Solar Irradiance Centered at '+str(mids[ind])+' $\mathrm{\AA}$ (Solar Cycle 25)', fontsize=20)
     plt.savefig(results_dir+'sampleTimeSeries_cycle25.png', dpi=300)
     # ==================================================================================================================
-    # 4: [STATISTICS OF] PERTURBATIONS (FOR NEUVAC)
+    # TODO 4: [STATISTICS OF] PERTURBATIONS (FOR NEUVAC)
 
     # ==================================================================================================================
     # 5: BEHAVIOR OF NORMALIZED RESIDUALS (SQUARE DIFFERENCES)
@@ -370,7 +372,7 @@ if __name__=="__main__":
     plt.yscale('log')
     plt.xlabel('Wavelength ($\mathrm{\AA}$)')
     plt.ylabel('MAPE (%)')
-    plt.title('MAPE w.r.t FISM2 as a Function of Wavelength')
+    plt.title('MAPE from FISM2 vs. Wavelength')
     plt.legend(loc='best')
     plt.grid()
     plt.savefig(results_dir + 'MAPE_by_band.png', dpi=300)
@@ -457,28 +459,28 @@ if __name__=="__main__":
     highSolarTimeIndsLonger = np.where((times >= highSolarTimeBoundsLonger[0]) & (times <= highSolarTimeBoundsLonger[-1]))[0]
     highSolarTimesLonger = times[highSolarTimeIndsLonger]
     #
-    axs[0].plot(lowSolarTimesLonger, fism2IntegEnergy[lowSolarTimeIndsLonger], label='FISM2')
-    axs[0].plot(lowSolarTimesLonger, neuvacIntegEnergy[lowSolarTimeIndsLonger], label='NEUVAC (n=' + str(iterations) + ')')
-    axs[0].plot(lowSolarTimesLonger, euvacIntegEnergy[lowSolarTimeIndsLonger], label='EUVAC')
-    axs[0].plot(lowSolarTimesLonger, heuvacIntegEnergy[lowSolarTimeIndsLonger], label='HEUVAC')
-    axs[0].set_ylabel('Integrated Energy (W)')
+    axs[0].plot(lowSolarTimesLonger, fism2IntegEnergy[lowSolarTimeIndsLonger] / (1e9), label='FISM2')
+    axs[0].plot(lowSolarTimesLonger, neuvacIntegEnergy[lowSolarTimeIndsLonger] / (1e9), label='NEUVAC (n=' + str(iterations) + ')')
+    axs[0].plot(lowSolarTimesLonger, euvacIntegEnergy[lowSolarTimeIndsLonger] / (1e9), label='EUVAC')
+    axs[0].plot(lowSolarTimesLonger, heuvacIntegEnergy[lowSolarTimeIndsLonger] / (1e9), label='HEUVAC')
+    axs[0].set_ylabel('Integrated Energy (GW)')
     axs[0].legend(loc='best')
     axs[0].set_title('Low Solar Activity: '+str(lowSolarTimeBoundsLonger[0])[:-9]+' to '+str(lowSolarTimeBoundsLonger[-1])[:-9])
     #
-    axs[1].plot(highSolarTimesLonger, fism2IntegEnergy[highSolarTimeIndsLonger], label='FISM2')
-    axs[1].plot(highSolarTimesLonger, neuvacIntegEnergy[highSolarTimeIndsLonger], label='NEUVAC (n=' + str(iterations) + ')')
-    axs[1].plot(highSolarTimesLonger, euvacIntegEnergy[highSolarTimeIndsLonger], label='EUVAC')
-    axs[1].plot(highSolarTimesLonger, heuvacIntegEnergy[highSolarTimeIndsLonger], label='HEUVAC')
-    axs[1].set_ylabel('Integrated Energy (W)')
+    axs[1].plot(highSolarTimesLonger, fism2IntegEnergy[highSolarTimeIndsLonger] / (1e9), label='FISM2')
+    axs[1].plot(highSolarTimesLonger, neuvacIntegEnergy[highSolarTimeIndsLonger] / (1e9), label='NEUVAC (n=' + str(iterations) + ')')
+    axs[1].plot(highSolarTimesLonger, euvacIntegEnergy[highSolarTimeIndsLonger] / (1e9), label='EUVAC')
+    axs[1].plot(highSolarTimesLonger, heuvacIntegEnergy[highSolarTimeIndsLonger] / (1e9), label='HEUVAC')
+    axs[1].set_ylabel('Integrated Energy (GW)')
     axs[1].legend(loc='best')
     axs[1].set_title('High Solar Activity: '+str(highSolarTimeBoundsLonger[0])[:-9]+' to '+str(highSolarTimeBoundsLonger[-1])[:-9])
     #
-    axs[2].plot(times, fism2IntegEnergy, label='FISM2')
-    axs[2].plot(times, neuvacIntegEnergy, label='NEUVAC (n='+str(iterations)+')')
-    axs[2].plot(times, euvacIntegEnergy, label='EUVAC')
-    axs[2].plot(times, heuvacIntegEnergy, label='HEUVAC')
+    axs[2].plot(times, fism2IntegEnergy / (1e9), label='FISM2')
+    axs[2].plot(times, neuvacIntegEnergy / (1e9), label='NEUVAC (n='+str(iterations)+')')
+    axs[2].plot(times, euvacIntegEnergy / (1e9), label='EUVAC')
+    axs[2].plot(times, heuvacIntegEnergy / (1e9), label='HEUVAC')
     axs[2].set_xlabel('Time')
-    axs[2].set_ylabel('Integrated Energy (W)')
+    axs[2].set_ylabel('Integrated Energy (GW)')
     axs[2].legend(loc='best')
     axs[2].set_title('Solar Cycle 20 through Ascending Phase of Solar Cycle 25')
     # Save the figure
@@ -487,7 +489,7 @@ if __name__=="__main__":
     fig.subplots_adjust(top=0.9)
     plt.savefig(results_dir + 'integrated_energy.png', dpi=300)
 
-    # Compute and print the MAPE for all models during low, moderate, and high solar activity (see Jin, et al. 2021: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2020JA028932)
+    # TABLE: Compute and print the MAPE for all models during low, moderate, and high solar activity (see Jin, et al. 2021 for definitions for low/moderate/high: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2020JA028932)
     lowSolarActivityInds = np.where(F107 < 80)[0]
     modSolarActivityInds = np.where((F107 >= 80) & (F107 < 120))[0]
     highSolarActivityInds = np.where(F107 >= 120)[0]
@@ -509,10 +511,253 @@ if __name__=="__main__":
     print('HEUVAC MAPE: ' + str(np.round(heuvacEnergyLowMape, 2)) + '% (low activity), ' + str(
         np.round(heuvacEnergyModMape, 2)) + '% (moderate activity), ' + str(
         np.round(heuvacEnergyHighMape, 2)) + '% (high activity)')
-
+    # ==================================================================================================================
+    # ==================================================================================================================
+    # ==================================================================================================================
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
     # ==================================================================================================================
     # 8: ANALYSIS: SOLOMON BANDS (FISM2-S, NEUVAC-S, EUVAC-S, and HFG)
+    # NOTE: In any analysis below, only 3 bands will be considered for plotting (25 A, 595 A, 1007 A)
     # ==================================================================================================================
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    #
+    # ==================================================================================================================
+    # ==================================================================================================================
+    # ==================================================================================================================
+    # 8A: Plot Solar Spectra in Low and High Solar Activity
+    xPosSolomonInitial = 0.5 * (solomonTable['short'] + solomonTable['long'])
+    xPosSolomon = np.append(xPosSolomonInitial, 1130.)
+    sortIndsSolomon = np.argsort(xPosSolomon)
+    xPosSortedSolomon = xPosSolomon[sortIndsSolomon]
+    fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
+    # i: Low Activity:
+    chosenDateLow = datetime(1985, 11, 4)  # Beginning of Solar Cycle 21
+    idx, val = toolbox.find_nearest(times, chosenDateLow)
+    ax[0].stairs(values=correspondingIrrFISM2StanBands[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='FISM2', lw=3)
+    ax[0].stairs(values=ensemble_average_NeuvacIrrSolomon[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon,
+                 label='NEUVAC-S (n=' + str(iterations) + ')', lw=3)
+    ax[0].stairs(values=solomonIrrEUVAC[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='EUVAC', lw=3)
+    ax[0].stairs(values=solomonIrrHFG[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='HFG', lw=3, color='purple')
+    ax[0].set_yscale('log')
+    ax[0].legend(loc='best')
+    ax[0].grid()
+    ax[0].set_xlabel('Wavelength ($\mathrm{\AA}$)')
+    ax[0].set_ylabel('Irradiance (W/m$^2$)')
+    ax[0].set_title('Solar Spectra during Low Solar Activity (' + str(chosenDateLow)[:-9] + ')')
+    # ii: High Activity:
+    chosenDateHigh = datetime(1991, 1, 31)  # Peak of Solar Cycle 21
+    idx, val = toolbox.find_nearest(times, chosenDateHigh)
+    chosenDateLow = datetime(1985, 11, 4)  # Beginning of Solar Cycle 21
+    ax[1].stairs(values=correspondingIrrFISM2StanBands[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='FISM2', lw=3)
+    ax[1].stairs(values=ensemble_average_NeuvacIrrSolomon[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon,
+                 label='NEUVAC-S (n=' + str(iterations) + ')', lw=3)
+    ax[1].stairs(values=solomonIrrEUVAC[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='EUVAC', lw=3)
+    ax[1].stairs(values=solomonIrrHFG[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='HFG', lw=3, color='purple')
+    ax[1].set_yscale('log')
+    ax[1].legend(loc='best')
+    ax[1].grid()
+    ax[1].set_xlabel('Wavelength ($\mathrm{\AA}$)')
+    ax[1].set_title('Solar Spectra during High Solar Activity (' + str(chosenDateHigh)[:-9] + ')')
+    plt.savefig(results_dir + 'sample_spectra_low_and_high_solar_activity_SOLOMON.png', dpi=300)
+
+    # 8B: Plot sample TIME SERIES during Low and High Solar Activity (3 bands only):
+    fig, axs = plt.subplots(nrows=2, ncols=3)
+    # Top-left: Low Solar Activity 25 A
+    axs[0, 0].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, 3], label='FISM2', lw=3)
+    axs[0, 0].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 3], label='NEUVAC (n='+str(iterations)+')', lw=3)
+    axs[0, 0].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 3], label='EUVAC', lw=3)
+    axs[0, 0].plot(lowSolarTimes, solomonIrrHFG[lowSolarTimeInds, 3], label='HFG', lw=3, color='purple')
+    axs[0, 0].set_ylabel('Irradiance (W/m$^2$)')
+    axs[0, 0].set_title('25 $\mathrm{\AA}$')
+    axs[0, 0].legend(loc='best')
+    axs[0, 0].set_xticklabels(axs[0, 0].get_xticklabels(), rotation=45, ha='right')
+    # Top-middle: Low Solar Activity 595 A
+    axs[0, 1].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, 10], label='FISM2', lw=3)
+    axs[0, 1].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 10], label='NEUVAC (n='+str(iterations)+')', lw=3)
+    axs[0, 1].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 10], label='EUVAC', lw=3)
+    axs[0, 1].plot(lowSolarTimes, solomonIrrHFG[lowSolarTimeInds, 10], label='HFG', lw=3, color='purple')
+    axs[0, 1].set_title('595 $\mathrm{\AA}$')
+    axs[0, 1].legend(loc='best')
+    axs[0, 1].set_xticklabels(axs[0, 1].get_xticklabels(), rotation=45, ha='right')
+    # Top-right: Low Solar Activity 1007 A
+    axs[0, 2].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, -3], label='FISM2', lw=3)
+    axs[0, 2].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, -2], label='NEUVAC (n='+str(iterations)+')', lw=3)
+    axs[0, 2].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, -2], label='EUVAC', lw=3)
+    axs[0, 2].plot(lowSolarTimes, solomonIrrHFG[lowSolarTimeInds, -2], label='HFG', lw=3, color='purple')
+    axs[0, 2].set_title('1007 $\mathrm{\AA}$')
+    axs[0, 2].legend(loc='best')
+    axs[0, 2].set_xticklabels(axs[0, 2].get_xticklabels(), rotation=45, ha='right')
+    # Bottom-left: High Solar Activity 25 A
+    axs[1, 0].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 3], label='FISM2', lw=3)
+    axs[1, 0].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 3], label='NEUVAC (n='+str(iterations)+')', lw=3)
+    axs[1, 0].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 3], label='EUVAC', lw=3)
+    axs[1, 0].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, 3], label='HFG', lw=3, color='purple')
+    axs[1, 0].set_ylabel('Irradiance (W/m$^2$)')
+    axs[1, 0].set_title('25 $\mathrm{\AA}$')
+    axs[1, 0].legend(loc='best')
+    axs[1, 0].set_xticklabels(axs[1, 0].get_xticklabels(), rotation=45, ha='right')
+    # Bottom-middle: High Solar Activity 595 A
+    axs[1, 1].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 10], label='FISM2', lw=3)
+    axs[1, 1].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 10], label='NEUVAC (n='+str(iterations)+')', lw=3)
+    axs[1, 1].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 10], label='EUVAC', lw=3)
+    axs[1, 1].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, 10], label='HFG', lw=3, color='purple')
+    axs[1, 1].set_title('595 $\mathrm{\AA}$')
+    axs[1, 1].legend(loc='best')
+    axs[1, 1].set_xticklabels(axs[1, 1].get_xticklabels(), rotation=45, ha='right')
+    # Bottom-right: High Solar Activity 1007 A
+    axs[1, 2].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, -3], label='FISM2', lw=3)
+    axs[1, 2].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, -2], label='NEUVAC (n='+str(iterations)+')', lw=3)
+    axs[1, 2].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, -2], label='EUVAC', lw=3)
+    axs[1, 2].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, -2], label='HFG', lw=3, color='purple')
+    axs[1, 2].set_title('1007 $\mathrm{\AA}$')
+    axs[1, 2].legend(loc='best')
+    axs[1, 2].set_xticklabels(axs[1, 2].get_xticklabels(), rotation=45, ha='right')
+    # Save the figure:
+    fig.tight_layout()
+    fig.suptitle('Irradiance During Low Solar Activity ('+str(lowSolarTimeBounds[0])[:-9]+' to '+
+                 str(lowSolarTimeBounds[-1])[:-9]+') and High Solar Activity ('+str(highSolarTimeBounds[0])[:-9]+' to '
+                 +str(highSolarTimeBounds[-1])[:-9]+')\n', fontsize=16, fontweight='bold')
+    fig.subplots_adjust(top=0.9)
+    plt.savefig(results_dir+'sampleTimeSeriesSpectra_Low_and_High_Solar_Activity_SOLOMON.png', dpi=300)
+
+    # 8C: Simple Time Series (with uncertainty bands) of NEUVAC with other models, during Solar Cycle 25:
+    indSolomon = 7
+    fig = plt.figure()
+    plt.plot(cycle25times, correspondingIrrFISM2StanBands[cycle25inds, indSolomon], label='FISM2')
+    plt.fill_between(cycle25times, (ensemble_average_NeuvacIrrSolomon-ensemble_stddev_NeuvacIrrSolomon)[cycle25inds, indSolomon],
+                              (ensemble_average_NeuvacIrrSolomon+ensemble_stddev_NeuvacIrrSolomon)[cycle25inds, indSolomon],
+                     color='orange', alpha=0.6)
+    plt.plot(cycle25times, ensemble_average_NeuvacIrrSolomon[cycle25inds, indSolomon], label='NEUVAC (n='+str(iterations)+')')
+    plt.plot(cycle25times, solomonIrrEUVAC[cycle25inds, indSolomon], label='EUVAC')
+    plt.plot(cycle25times, solomonIrrHFG[cycle25inds, indSolomon], label='HFG')
+    plt.legend(loc='best', fontsize=16)
+    plt.xlabel('Time', fontsize=18)
+    plt.ylabel('Irradiance (W/m$^2$)', fontsize=18)
+    plt.title('Solar Irradiance Centered at '+str(xPosSolomon[indSolomon])+' $\mathrm{\AA}$ (Solar Cycle 25)', fontsize=20)
+    plt.savefig(results_dir+'sampleTimeSeries_cycle25_SOLOMON.png', dpi=300)
+
+    # 8D: SQDF vs. Solar activity (F10.7) - 3 Bands:
+    sqdf_NEUVAC_25 = toolbox.squareDiff(ensemble_average_NeuvacIrrSolomon[:, 3], correspondingIrrFISM2StanBands[:, 3])
+    sqdf_NEUVAC_595 = toolbox.squareDiff(ensemble_average_NeuvacIrrSolomon[:, 10], correspondingIrrFISM2StanBands[:, 10])
+    sqdf_NEUVAC_1007 = toolbox.squareDiff(ensemble_average_NeuvacIrrSolomon[:, -2], correspondingIrrFISM2StanBands[:, -3])
+    sqdf_EUVAC_25 = toolbox.squareDiff(solomonIrrEUVAC[:, 3], correspondingIrrFISM2StanBands[:, 3])
+    sqdf_EUVAC_595 = toolbox.squareDiff(solomonIrrEUVAC[:, 10], correspondingIrrFISM2StanBands[:, 10])
+    sqdf_EUVAC_1007 = toolbox.squareDiff(solomonIrrEUVAC[:, -2], correspondingIrrFISM2StanBands[:, -3])
+    sqdf_HFG_25 = toolbox.squareDiff(solomonIrrHFG[:, 3], correspondingIrrFISM2StanBands[:, 3])
+    sqdf_HFG_595 = toolbox.squareDiff(solomonIrrHFG[:, 10], correspondingIrrFISM2StanBands[:, 10])
+    sqdf_HFG_1007 = toolbox.squareDiff(solomonIrrHFG[:, -2], correspondingIrrFISM2StanBands[:, -3])
+    sortF107 = np.argsort(F107)
+    fig, axs = plt.subplots(nrows=1, ncols=3)
+    axs[0].scatter(F107[sortF107], sqdf_NEUVAC_25[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    axs[0].scatter(F107[sortF107], sqdf_EUVAC_25[sortF107], color='green', label='EUVAC', alpha=0.6)
+    axs[0].scatter(F107[sortF107], sqdf_HFG_25[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[0].set_xlabel('F10.7 (sfu)')
+    axs[0].set_ylabel('Squared Difference from FISM2 (W/m$^2$)')
+    axs[0].set_title('25 $\mathrm{\AA}$')
+    axs[0].set_yscale('log')
+    axs[0].legend(loc='best')
+    axs[1].scatter(F107[sortF107], sqdf_NEUVAC_595[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    axs[1].scatter(F107[sortF107], sqdf_EUVAC_595[sortF107], color='green', label='EUVAC', alpha=0.6)
+    axs[1].scatter(F107[sortF107], sqdf_HFG_595[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[1].set_xlabel('F10.7 (sfu)')
+    axs[1].set_title('595 $\mathrm{\AA}$')
+    axs[1].set_yscale('log')
+    axs[1].legend(loc='best')
+    axs[2].scatter(F107[sortF107], sqdf_NEUVAC_1007[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    axs[2].scatter(F107[sortF107], sqdf_EUVAC_1007[sortF107], color='green', label='EUVAC', alpha=0.6)
+    axs[2].scatter(F107[sortF107], sqdf_HFG_1007[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[2].set_xlabel('F10.7 (sfu)')
+    axs[2].set_title('1007 $\mathrm{\AA}$')
+    axs[2].set_yscale('log')
+    axs[2].legend(loc='best')
+    plt.savefig(results_dir + 'SQDF_by_F107_SOLOMON.png', dpi=300)
+
+    # 8E: MAPE vs. Wavelength Band:
+    mapeNEUVACS = []
+    for i in range(ensemble_average_NeuvacIrrSolomon.shape[1]):
+        mapeNEUVACS.append(toolbox.mape(correspondingIrrFISM2StanBands[:, i], ensemble_average_NeuvacIrrSolomon[:, i]) * 100)
+    mapeEUVACS = []
+    for i in range(ensemble_average_NeuvacIrrSolomon.shape[1]):
+        mapeEUVACS.append(toolbox.mape(correspondingIrrFISM2StanBands[:, i], solomonIrrEUVAC[:, i]) * 100)
+    mapeHFG = []
+    for i in range(ensemble_average_NeuvacIrrSolomon.shape[1]):
+        mapeHFG.append(toolbox.mape(correspondingIrrFISM2StanBands[:, i], solomonIrrHFG[:, i]) * 100)
+    sortWavSolomon = xPosSortedSolomon[:-1]
+    plt.figure()
+    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeNEUVACS)[sortIndsSolomon[:-1]], color='orange', marker='o', label='NEUVAC (n='+str(iterations)+')')
+    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeEUVACS)[sortIndsSolomon[:-1]], color='green', marker='o', label='EUVAC')
+    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeHFG)[sortIndsSolomon[:-1]], color='purple', marker='o', label='HFG')
+    plt.yscale('log')
+    plt.xlabel('Wavelength ($\mathrm{\AA}$)')
+    plt.ylabel('MAPE (%)')
+    plt.title('MAPE from FISM2 vs. Wavelength')
+    plt.legend(loc='best')
+    plt.grid()
+    plt.savefig(results_dir + 'MAPE_by_band_SOLOMON.png', dpi=300)
+
+    # 8F:
+    # NEUVAC_resids = vfunc(ensemble_average_NeuvacIrr, correspondingFism2Irr)
+    #     EUVAC_resids = vfunc(euvacIrr, correspondingFism2Irr)
+    #     HEUVAC_resids = vfunc(heuvacIrr, correspondingFism2Irr)
+    #     NEUVAC_resids_flat = np.ravel(NEUVAC_resids)
+    #     EUVAC_resids_flat = np.ravel(EUVAC_resids)
+    #     HEUVAC_resids_flat = np.ravel(HEUVAC_resids)
+    #     # bins = np.linspace(np.min([np.nanpercentile(NEUVAC_resids, 25), np.nanpercentile(EUVAC_resids, 25), np.nanpercentile(HEUVAC_resids[HEUVAC_resids != -np.inf], 25)]),
+    #     #                    np.max([np.nanpercentile(NEUVAC_resids, 75), np.nanpercentile(EUVAC_resids, 75), np.nanpercentile(HEUVAC_resids, 75)]), num=100)
+    #     bins = np.linspace(np.nanmin(NEUVAC_resids_flat), np.nanmax(NEUVAC_resids_flat), num=100)
+    #
+    #     myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
+    #     figHist = toolbox.plotHist(NEUVAC_resids_flat, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev.png', labels=myLabels)
+    #
+    #     # ii: Behavior of Percent Deviations as a Function Solar Activity (F10.7)
+    #     NEUVAC_resids_75 = NEUVAC_resids[:, 0]
+    #     NEUVAC_resids_475 = NEUVAC_resids[:, 14]
+    #     NEUVAC_resids_1025 = NEUVAC_resids[:, -1]
+    #     EUVAC_resids_75 = EUVAC_resids[:, 0]
+    #     EUVAC_resids_475 = EUVAC_resids[:, 14]
+    #     EUVAC_resids_1025 = HEUVAC_resids[:, -1]
+    #     HEUVAC_resids_75 = HEUVAC_resids[:, 0]
+    #     HEUVAC_resids_475 = HEUVAC_resids[:, 14]
+    #     HEUVAC_resids_1025 = HEUVAC_resids[:, -1]
+    #     fig, axs = plt.subplots(nrows=1, ncols=3)
+    #     axs[0].scatter(F107[sortF107], NEUVAC_resids_75[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    #     axs[0].scatter(F107[sortF107], EUVAC_resids_75[sortF107], color='green', label='EUVAC', alpha=0.6)
+    #     axs[0].scatter(F107[sortF107], HEUVAC_resids_75[sortF107], color='red', label='HEUVAC', alpha=0.6)
+    #     axs[0].set_xlabel('F10.7 (sfu)')
+    #     axs[0].set_ylabel('Percent Deviation from FISM2 (%)')
+    #     axs[0].set_title('75 $\mathrm{\AA}$')
+    #     axs[0].legend(loc='best')
+    #     axs[1].scatter(F107[sortF107], NEUVAC_resids_475[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    #     axs[1].scatter(F107[sortF107], EUVAC_resids_475[sortF107], color='green', label='EUVAC', alpha=0.6)
+    #     axs[1].scatter(F107[sortF107], HEUVAC_resids_475[sortF107], color='red', label='HEUVAC', alpha=0.6)
+    #     axs[1].set_xlabel('F107 (sfu)')
+    #     axs[1].set_title('475 $\mathrm{\AA}$')
+    #     axs[1].legend(loc='best')
+    #     axs[2].scatter(F107[sortF107], NEUVAC_resids_1025[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    #     axs[2].scatter(F107[sortF107], EUVAC_resids_1025[sortF107], color='green', label='EUVAC', alpha=0.6)
+    #     axs[2].scatter(F107[sortF107], HEUVAC_resids_1025[sortF107], color='red', label='HEUVAC', alpha=0.6)
+    #     axs[2].set_xlabel('F107 (sfu)')
+    #     axs[2].set_title('1025 $\mathrm{\AA}$')
+    #     axs[2].legend(loc='best')
+    #     plt.savefig(results_dir + 'percDev_by_F107.png', dpi=300)
 
     # ==================================================================================================================
     # Exit with a zero error code:

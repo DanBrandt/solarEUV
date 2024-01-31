@@ -19,7 +19,6 @@ from tools.processIrradiances import obtainFism2
 from tools import toolbox
 from empiricalModels.models.EUVAC import euvac
 from empiricalModels.models.HEUVAC import heuvac
-from empiricalModels.models.SOLOMON import solomon
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
