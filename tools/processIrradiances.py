@@ -14,8 +14,8 @@ from netCDF4 import Dataset
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
-from tools.EUV.fism2_process import read_euv_csv_file
 from tools import toolbox
+from tools import spectralAnalysis
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -186,13 +186,19 @@ def obtainFism2(myFism2File, bands=False):
         A two-dimensional array of irradiance uncertainty values at each time.
     """
     fism2Data = Dataset(myFism2File)
-    if bands==True:
-        irradiance = np.asarray(fism2Data.variables['ssi'])
+    wavelengths = np.asarray(fism2Data.variables['wavelength'])
+    if bands==True: # STANDARD BANDS
+        flux = np.asarray(fism2Data.variables['ssi']) # photons/cm2/second
+        pFlux = flux / 1.0e-4
+        # Convert fluxes to irradiances:
+        irr = np.zeros_like(flux)
+        for i in range(flux.shape[1]):
+            irr[:, i] = spectralAnalysis.spectralIrradiance(pFlux[:, i], wavelengths[i]*10.)
+        irradiance = [flux, irr]
         uncertainties = np.asarray(fism2Data.variables['band_width']) # TODO: Replace with an estimation of uncertainty
-    else:
+    else: # NATIVE DATA
         irradiance = np.asarray(fism2Data.variables['irradiance'])
         uncertainties = np.asarray(fism2Data.variables['uncertainty'])
-    wavelengths = np.asarray(fism2Data.variables['wavelength'])
     dates = fism2Data.variables['date']
     datetimes = []
     for i in range(len(dates)):

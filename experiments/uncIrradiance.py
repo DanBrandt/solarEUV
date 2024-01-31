@@ -26,6 +26,7 @@ from empiricalModels.models.SOLOMON import solomon
 # Directory Management
 euv_folder = '../tools/EUV/'
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
+neuvac_tableFile_Solomon = '../NEUVAC/src/neuvac_table_stan_bands.txt'
 figures_folder = 'Uncertainty'
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -68,8 +69,7 @@ if __name__=="__main__":
     plt.plot(np.linspace(0, len(F107A) - 1, len(F107A)), F107A, 'g-')
 
     # Generate NEUVAC data:
-    neuvacIrr, perturbedNeuvacIrr, savedPerts, cc2 = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile,
-                                                     statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
+    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands=None, tableFile=neuvac_tableFile) # perturbedNeuvacIrr, savedPerts, cc2
 
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
@@ -135,18 +135,24 @@ if __name__=="__main__":
 
     # ------------------------------------------------------------------------------------------------------------------
     # 3: View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
-    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(11, 6))
-    pos=axs[0].imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
-    axs[0].set_xlabel('Wavelength Band')
-    axs[0].set_ylabel('Wavelength Band')
-    axs[0].set_title('Original Correlation Matrix (NEUVAC - FISM2)')
-    pos2=axs[1].imshow(cc2, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
-    axs[1].set_xlabel('Wavelength Band')
-    axs[1].set_ylabel('Wavelength Band')
-    axs[1].set_title('Perturbation Correlation Matrix (NEUVAC_P - NEUVAC)')
-    fig.colorbar(pos, ax=axs[0])
-    fig.colorbar(pos2, ax=axs[1])
-    plt.savefig('Uncertainty/corMats.png', dpi=300)
+    # fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(11, 6))
+    # pos=axs[0].imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
+    # axs[0].set_xlabel('Wavelength Band')
+    # axs[0].set_ylabel('Wavelength Band')
+    # axs[0].set_title('Original Correlation Matrix (NEUVAC - FISM2)')
+    # pos2=axs[1].imshow(cc2, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
+    # axs[1].set_xlabel('Wavelength Band')
+    # axs[1].set_ylabel('Wavelength Band')
+    # axs[1].set_title('Perturbation Correlation Matrix (NEUVAC_P - NEUVAC)')
+    # fig.colorbar(pos, ax=axs[0])
+    # fig.colorbar(pos2, ax=axs[1])
+    fig = plt.figure()
+    pos = plt.imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
+    plt.xlabel('Wavelength Band')
+    plt.ylabel('Wavelength Band')
+    plt.title('Correlation Matrix (NEUVAC - FISM2)')
+    fig.colorbar(pos)
+    plt.savefig('Uncertainty/corMat.png', dpi=300)
 
     # ------------------------------------------------------------------------------------------------------------------
     # 4: Look at the Correlation between FISM2 and NEUVAC in each band, and that of (NEUVAC-FISM2)^2 and NEUVAC in each band:
@@ -186,13 +192,54 @@ if __name__=="__main__":
         plt.tight_layout()
         plt.savefig('Uncertainty/correlation_sqdf_band_'+str(i+1)+'.png', dpi=300)
         pearsonVals.append([pearsonR[0], pearsonR2[0]])
+    # ------------------------------------------------------------------------------------------------------------------
+    # 5: Do all of the above, but for the SOLOMON version of NEUVAC:
+
+    # Generate NEUVAC data:
+    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon)
+
+    # Load in FISM2 STAN BAND data:
+    # FISM2 Stan Band Results:
+    fism2file = '../empiricalModels/irradiances/FISM2/daily_bands_1947-2024.nc'
+    myIrrTimesFISM2Bands, wavelengthsFISM2Bands, myDataAllFISM2Bands, _ = obtainFism2(fism2file, bands=True)
+    myFluxDataAllFISM2Bands, myIrrDataAllFISM2Bands = myDataAllFISM2Bands
+
+    # Replace bad values with NaNs:
+    myIrrDataAllFISM2BandsFixed = myIrrDataAllFISM2Bands.copy()
+    myIrrDataAllFISM2BandsFixed[myIrrDataAllFISM2BandsFixed <= 0] = np.nan
+
+    # Harmonize the times for NEUVAC and FISM2:
+    correspondingIndsFISM2StanBands = np.where((myIrrTimesFISM2Bands >= times[0]) & (myIrrTimesFISM2Bands <= times[-1]))[0]
+    correspondingIrrTimesFISM2StanBands = myIrrTimesFISM2Bands[correspondingIndsFISM2StanBands]
+    correspondingIrrFISM2StanBands = myIrrDataAllFISM2BandsFixed[correspondingIndsFISM2StanBands, :]
+
+    # Compute the normalized cross-correlation matrix between residuals in different bins:
+    residualsArrayStanBands = np.subtract(neuvacIrrSolomon, correspondingIrrFISM2StanBands[:, :-1])
+    toolbox.savePickle(residualsArrayStanBands, 'residualsArrayStanBands.pkl')
+    corMatStanBands = toolbox.mycorrelate2d(residualsArrayStanBands, normalized=True)
+    toolbox.savePickle(corMatStanBands, 'corMatStanBands.pkl')
+
+    # Compute the normalized standard deviation of NEUVAC irradiance residuals (in each band):
+    STDNeuvacResidsStanBands = np.zeros(neuvacIrrSolomon.shape[1])
+    for i in range(STDNeuvacResidsStanBands.shape[0]):
+        STDNeuvacResidsStanBands[i] = np.nanstd(residualsArrayStanBands[:, i])
+    # Save these values to be used later for running ensembles:
+    toolbox.savePickle(STDNeuvacResidsStanBands, 'sigma_NEUVAC_StanBands.pkl')
+
+    # View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
+    fig = plt.figure()
+    pos = plt.imshow(corMatStanBands, aspect='auto', cmap='bwr', interpolation='none')
+    plt.xlabel('Wavelength Band')
+    plt.ylabel('Wavelength Band')
+    plt.title('Correlation Matrix (NEUVAC-S - FISM2-S)')
+    fig.colorbar(pos)
+    plt.savefig('Uncertainty/corMatStanBands.png', dpi=300)
 
     # ------------------------------------------------------------------------------------------------------------------
-    # 5: Compute the normalized cross-correlation matrices and normalized standard deviations for ALL OTHER MODELS
-    # 5a: EUVAC
-    euvacFlux, euvacIrr, perturbedEuvIrradiance, savedPerts, cc2 = euvac.euvac(F107, F107A,
-                                                                               statsFiles=['corMatEUVAC.pkl',
-                                                                                           'sigma_EUVAC.pkl'])
+    # 6: Compute the normalized cross-correlation matrices and normalized standard deviations for ALL OTHER MODELS
+    # 6a: EUVAC
+    euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A)
+
     residualsArrayEUVAC = np.subtract(euvacIrr, correspondingIrrFISM2[:, 7:44])
     toolbox.savePickle(residualsArrayEUVAC, 'residualsArrayEUVAC.pkl')
     corMatEUVAC = toolbox.mycorrelate2d(residualsArrayEUVAC, normalized=True)
@@ -210,7 +257,7 @@ if __name__=="__main__":
     fig.subplots_adjust(top=0.9)
     plt.savefig('Uncertainty/corMatsEUVAC.png', dpi=300)
 
-    # 5b: HEUVAC
+    # 6b: HEUVAC
     heuvac_wav, heuvacFlux, heuvacIrr = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl',
                                                                                            'sigma_HEUVAC.pkl'])
     residualsArrayHEUVAC = np.subtract(heuvacIrr, correspondingIrrFISM2[:, 7:44])
@@ -230,7 +277,7 @@ if __name__=="__main__":
     fig.subplots_adjust(top=0.9)
     plt.savefig('Uncertainty/corMatsHEUVAC.png', dpi=300)
 
-    # 5c: TODO: SOLOMON
+    # 6c: TODO: SOLOMON (HFG and EUVAC) -- Optional
 
     # ------------------------------------------------------------------------------------------------------------------
     # Exit with a zero error code:

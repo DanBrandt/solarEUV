@@ -9,7 +9,9 @@ from tqdm import tqdm
 #-----------------------------------------------------------------------------------------------------------------------
 # Global Variables
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
+neuvac_tableFile_Stan_Bands = '../NEUVAC/src/neuvac_table_stan_bands.txt'
 neuvacStatsFiles = ['../experiments/corMat.pkl', '../experiments/sigma_NEUVAC.pkl']
+neuvacStatsFiles_Stan_Bands = ['../experiments/corMatStanBands.pkl', '../experiments/sigma_NEUVAC_StanBands.pkl']
 euvacStatsFiles = ['../experiments/corMatEUVAC.pkl', '../experiments/sigma_EUVAC.pkl']
 heuvacStatsFiles = ['../experiments/corMatHEUVAC.pkl', '../experiments/sigma_HEUVAC.pkl']
 #-----------------------------------------------------------------------------------------------------------------------
@@ -77,8 +79,8 @@ def irradiance_ensemble(F107, F107A, iterations=100, model='NEUVAC'):
         The number of ensemble members.
     :param model: str
         The model with which to run the ensemble. May be 'NEUVAC', 'NEUVAC-E', 'EUVAC', or 'HEUVAC'. If the model is in
-        the STAN BANDS, valid arguments include 'NEUVAC-S', 'EUVAC-S', 'HEUVAC-S', or 'HFG'. 'NEUVAC' refers to the 59-
-        band base model of NEUVAC, while 'NEUVAC-E' refers to the 37-band base model of NEUVAC.
+        the STAN BANDS, valid arguments include 'NEUVAC-S', 'EUVAC-S', or 'HFG'. 'NEUVAC' refers to the 59-band base
+        model of NEUVAC, while 'NEUVAC-E' refers to the 37-band base model of NEUVAC.
     :return ensemble: ndarray
         A 3D array where each 2D element is an ensemble.
     :return ensemble_avg: ndarray
@@ -98,16 +100,27 @@ def irradiance_ensemble(F107, F107A, iterations=100, model='NEUVAC'):
     # Fill the ensemble:
     for i in tqdm(range(iterations)):
         if model=='NEUVAC-E':
-            _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bandLim=True, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
+            _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bands='EUVAC', tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
         elif model=='NEUVAC':
-            _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bandLim=False, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
+            _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bands=None, tableFile=neuvac_tableFile, statsFiles=neuvacStatsFiles)
         elif model=='EUVAC':
             _, _, perturbedEuvIrradiance, _, _ = euvac.euvac(F107, F107A, statsFiles=euvacStatsFiles)
         elif model=='HEUVAC':
             _, _, _, perturbedEuvIrradiance, _, _ = heuvac.heuvac(F107, F107A, statsFiles=heuvacStatsFiles)
-            # TODO: Add functionality for SOLOMON.
+        elif model=='NEUVAC-S' or model=='EUVAC-S' or model=='HFG':
+            if model == 'NEUVAC-S':
+                _, perturbedEuvIrradiance, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON',
+                                                                   tableFile=neuvac_tableFile_Stan_Bands,
+                                                                   statsFiles=neuvacStatsFiles)
+            elif model == 'EUVAC-S':
+                pass
+            elif model == 'HFG':
+                pass
+            else:
+                raise ValueError
         else:
-            raise ValueError('The chosen model must either be: NEUVAC-E, NEUVAC, EUVAC, HEUVAC, or SOLOMON!')
+            raise ValueError('The chosen model must either be: NEUVAC-E, NEUVAC, EUVAC, HEUVAC, or the SOLOMON version'
+                             'of the aforementioned (NEUVAC-S, EUVAC-S, or HFG)!')
         ensemble[i, :, :] = perturbedEuvIrradiance
     # Compute the ensemble average and ensemble standard deviations:
     ensemble_average = np.nanmean(ensemble, axis=0)

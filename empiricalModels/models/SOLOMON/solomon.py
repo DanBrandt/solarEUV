@@ -36,7 +36,7 @@ solomonTable = np.array([
         [19, 913, 975, 8.642e8, 8.440e8, 0, 7.156e8, 4.422e-3, 6.840e8, 1.111e9],
         [20, 975, 98.7, 6.056e9, 3.671e9, 0, 4.482e9, 3.950e-3, 4.139e9, 6.801e9],
         [21, 987, 1027, 5.569e9, 4.984e9, 0, 4.419e9, 5.021e-3, 6.274e9, 1.019e10],
-        [22, 1027, 1050, 6.309e9, 5.796e9, 0, 4.235e9, 4.825e-3, 4.389e9, 7.153e9],
+        [22, 1027, 1050, 6.309e9, 5.796e9, 0, 4.235e9, 4.825e-3, 4.389e9, 7.153e9]
     ])
 solomonBands = {
     'short': solomonTable[:, 1],
@@ -59,9 +59,9 @@ def solomon(F107, F107A, model='HFG'):
         Either 'HFG' or 'EUVAC'. Controls whether or not the empirical EUV data returned corresponds to the HFG model or
         the EUVAC model.
     :return solomonFlux: ndarray
-        Values of the solar radiant flux in 23 distinct wavelength bands.
+        Values of the solar radiant flux in 23 distinct wavelength bands. Units of photon/m^2/s
     :return solomonIrr: ndarray
-        Values of the solar EUV irradiance in 23 distinct wavelength bands.
+        Values of the solar EUV irradiance in 23 distinct wavelength bands. Units of W/m^2
     """
     # Instantiate the output data:
     if type(F107) == list or type(F107) != np.ndarray:
@@ -89,9 +89,13 @@ def solomon(F107, F107A, model='HFG'):
         # dwav = wavel - waves
         mid = 0.5*(waves + wavel)
         if model == 'EUVAC':
-            flux = solomonTable[j, 6] * (1. + solomonTable[j, 7]*(P - 80))
+            if j <= 3:
+                prod = np.abs(1. + solomonTable[j, 7]*(P - 80.))
+            else:
+                prod = (1. + solomonTable[j, 7]*(P - 80.))
+            flux = solomonTable[j, 6] * prod / 1.0e-4
         else:
-            flux = (solomonTable[j, 3] + r1*solomonTable[j, 4] + r2*solomonTable[j, 5])/1e-4 # Units of m^-2 s^-1
+            flux = (solomonTable[j, 3] + r1*solomonTable[j, 4] + r2*solomonTable[j, 5])/1.0e-4 # Units of m^-2 s^-1
         irradiance = spectralIrradiance(flux, mid)
         solomonFlux[:, j] = np.squeeze(flux)
         solomonIrr[:, j] = np.squeeze(irradiance)
@@ -103,10 +107,3 @@ def solomon(F107, F107A, model='HFG'):
 
     return solomonFlux, solomonIrr
 #-----------------------------------------------------------------------------------------------------------------------
-
-#-----------------------------------------------------------------------------------------------------------------------
-# Execution:
-if __name__ == '__main__':
-    F107 = np.array([20, 25, 40, 70, 85, 84, 72, 58, 59, 49, 37, 21])
-    # F107A = averageF107(F107)
-    myFlux, myIrr = solomon(F107, F107, model='HFG')

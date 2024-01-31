@@ -26,6 +26,7 @@ from tools.spectralAnalysis import irradiance_ensemble
 # Directory Management
 euv_folder = '../tools/EUV/'
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
+neuvac_tableFile_Stan_Bands = '../NEUVAC/src/neuvac_table_stan_bands.txt'
 results_dir = 'Results/'
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -69,9 +70,25 @@ if __name__=="__main__":
     correspondingIrrTimesFISM2 = myIrrTimesFISM2[correspondingIndsFISM2]
     correspondingFism2Irr = fism2Irr[correspondingIndsFISM2, :]
 
+    # Do the same for the FISM2 data in the SOLOMON bins:
+    fism2file = '../empiricalModels/irradiances/FISM2/daily_bands_1947-2024.nc'
+    myIrrTimesFISM2Bands, wavelengthsFISM2Bands, myDataAllFISM2Bands, _ = obtainFism2(fism2file, bands=True)
+    myFluxDataAllFISM2Bands, myIrrDataAllFISM2Bands = myDataAllFISM2Bands
+
+    # Replace bad values with NaNs:
+    myIrrDataAllFISM2BandsFixed = myIrrDataAllFISM2Bands.copy()
+    myIrrDataAllFISM2BandsFixed[myIrrDataAllFISM2BandsFixed <= 0] = np.nan
+
+    # Harmonize the times for NEUVAC and FISM2:
+    correspondingIndsFISM2StanBands = \
+    np.where((myIrrTimesFISM2Bands >= times[0]) & (myIrrTimesFISM2Bands <= times[-1]))[0]
+    correspondingIrrTimesFISM2StanBands = myIrrTimesFISM2Bands[correspondingIndsFISM2StanBands]
+    correspondingIrrFISM2StanBands = myIrrDataAllFISM2BandsFixed[correspondingIndsFISM2StanBands, :]
+
     # ==================================================================================================================
     # 2: Run the empirical models:
-    if os.path.isfile(results_dir+'cachedData.pkl') == True:
+    cached = False # TODO: Remove
+    if os.path.isfile(results_dir+'cachedData.pkl') == True and cached == True:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
         iterations = cachedData["iterations"]
@@ -100,7 +117,7 @@ if __name__=="__main__":
         ensemble_NeuvacIrr, ensemble_average_NeuvacIrr, ensemble_stddev_NeuvacIrr = irradiance_ensemble(F107, F107A,
                                                                                                         iterations=iterations,
                                                                                                         model='NEUVAC-E') # plt.figure(); plt.fill_between(times, (ensemble_average_NeuvacIrr-ensemble_stddev_NeuvacIrr)[:, 0], (ensemble_average_NeuvacIrr+ensemble_stddev_NeuvacIrr)[:, 0], color='gray', alpha=0.8); plt.plot(times, ensemble_average_NeuvacIrr[:, 0], color='k')
-        neuvacIrr, perturbedNeuvacIrr, savedPertsNeuvac, cc2Neuvac = neuvac.neuvacEUV(F107, F107A, bandLim=True, tableFile=neuvac_tableFile,
+        neuvacIrr, perturbedNeuvacIrr, savedPertsNeuvac, cc2Neuvac = neuvac.neuvacEUV(F107, F107A, bands='EUVAC', tableFile=neuvac_tableFile,
                                                                           statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
         # Generate EUVAC data:
@@ -122,18 +139,23 @@ if __name__=="__main__":
                                                                                                                    'corMatHEUVAC.pkl',
                                                                                                                    'sigma_HEUVAC.pkl'])
 
-        # for l in range(heuvacIrr.shape[1]):
-        #     plt.figure()
-        #     plt.fill_between(times, (ensemble_average_HeuvacIrr-ensemble_stddev_HeuvacIrr)[:, l], (ensemble_average_HeuvacIrr+ensemble_stddev_HeuvacIrr)[:, l], color='gray', alpha=0.8)
-        #     plt.plot(times, ensemble_average_HeuvacIrr[:, l], color='k')
-        #     plt.plot(times, heuvacIrr[:, l], color='r')
-
         # Generate SOLOMON data and rebin everything into the SOLOMON bins:
-        # solomonIrrFISM2 = toolbox.rebin(heuvac_wav, correspondingFism2Irr, resolution=solomon.solomonTable, zero=False) # TODO: Replace with a command to LOAD IN FISM2 STAN BANDS from LISIRD
-        # solomonIrrNEUVAC = toolbox.rebin(heuvac_wav, perturbedNeuvacIrr, resolution=solomon.solomonTable, zero=False) # TODO: Replace with a new function call to the freshly-fit NEUVAC STAN BANDS results
-        # solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
-        # solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
-        # solomonIrrHEUVAC = toolbox.rebin(heuvac_wav, heuvacIrr, resolution=solomon.solomonTable, zero=False)
+        ensemble_NeuvacIrrSolomon, ensemble_average_NeuvacIrrSolomon, ensemble_stddev_NeuvacIrrSolomon = irradiance_ensemble(F107, F107A,
+                                                                                                        iterations=iterations,
+                                                                                                        model='NEUVAC-S')
+        neuvacIrrSolomon, perturbedNeuvacIrrSolomon, savedPertsNeuvacSolomon, cc2NeuvacSolomon = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON',
+                                                                                      tableFile=neuvac_tableFile_Stan_Bands,
+                                                                                      statsFiles=['corMatStanBands.pkl',
+                                                                                                  'sigma_NEUVAC_StanBands.pkl'])
+        solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
+        solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
+
+        # for l in range(heuvacIrr.shape[1]):
+        #     l = 5
+        #     plt.figure()
+        #     plt.fill_between(times, (ensemble_average_NeuvacIrrSolomon-ensemble_stddev_NeuvacIrrSolomon)[:, l], (ensemble_average_NeuvacIrrSolomon+ensemble_stddev_NeuvacIrrSolomon)[:, l], color='gray', alpha=0.8)
+        #     plt.plot(times, ensemble_average_NeuvacIrrSolomon[:, l], color='k')
+        #     plt.plot(times, correspondingIrrFISM2StanBands[:, l], color='r')
 
         cachedData = {
             "iterations": iterations,
@@ -154,7 +176,14 @@ if __name__=="__main__":
             "heuvacIrr": heuvacIrr,
             "perturbedEuvIrradiance": perturbedEuvIrradiance,
             "savedPertsHeuvac": savedPertsHeuvac,
-            "cc2Heuvac": cc2Heuvac
+            "cc2Heuvac": cc2Heuvac,
+            "ensemble_NeuvacIrrSolomon": ensemble_NeuvacIrrSolomon,
+            "ensemble_average_NeuvacIrrSolomon": ensemble_average_NeuvacIrrSolomon,
+            "ensemble_stddev_NeuvacIrrSolomon": ensemble_stddev_NeuvacIrrSolomon,
+            "solomonFluxHFG": solomonFluxHFG,
+            "solomonIrrHFG": solomonIrrHFG,
+            "solomonFluxEUVAC": solomonFluxEUVAC,
+            "solomonIrrEUVAC": solomonIrrEUVAC
         }
         toolbox.savePickle(cachedData, results_dir+'cachedData.pkl')
 
@@ -397,8 +426,6 @@ if __name__=="__main__":
     axs[2].legend(loc='best')
     plt.savefig(results_dir + 'percDev_by_F107.png', dpi=300)
 
-    # TODO: COMPLETE (add in SOLOMON)!
-
     # ==================================================================================================================
     # 7: INTEGRATED ENERGY (ACROSS THE SUN-FACING SIDE OF THE EARTH)
     Re = 6.3781e6 # Nominal Terrestrial Radius in meters (Mamajek, et al. 2015: https://arxiv.org/abs/1510.07674)
@@ -482,6 +509,11 @@ if __name__=="__main__":
     print('HEUVAC MAPE: ' + str(np.round(heuvacEnergyLowMape, 2)) + '% (low activity), ' + str(
         np.round(heuvacEnergyModMape, 2)) + '% (moderate activity), ' + str(
         np.round(heuvacEnergyHighMape, 2)) + '% (high activity)')
+
+    # ==================================================================================================================
+    # 8: ANALYSIS: SOLOMON BANDS (FISM2-S, NEUVAC-S, EUVAC-S, and HFG)
+    # ==================================================================================================================
+
     # ==================================================================================================================
     # Exit with a zero error code:
     sys.exit(0)

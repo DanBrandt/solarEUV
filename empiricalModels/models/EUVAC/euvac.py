@@ -10,7 +10,7 @@ from tqdm import tqdm
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports:
-from tools.spectralAnalysis import spectralIrradiance
+from tools import spectralAnalysis
 import tools.toolbox
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -75,7 +75,7 @@ def refSpec(i):
     :param: i: int
         The index for the wavelength. Must be between 0 and 37.
     :return: F74113_i: float
-        The reference solar flux in units of photons m^-2 s^-1.
+        The reference solar flux in units of photons/m^2/s^.
     :return: A_i: float
         The scaling factor for the wavelength interval.
     """
@@ -92,10 +92,13 @@ def euvac(F107, F107A, statsFiles=None):
         Values of the F10.7 solar flux.
     :param F107A: ndarray
         Values of the 81-day averaged solar flux, centered on the present day.
+    :param statsFiles: list
+        A 2 element list where the first element is a file containing the 59x59 correlation matrix and the second
+        element is a file containing the 1x59 standard deviation values for NEUVAC. NOT REQUIRED.
     :return: euvacFlux: ndarray
-        Values of the solar radiant flux in 37 distinct wavelength bands.
+        Values of the solar radiant flux in 37 distinct wavelength bands. In photons/m^2/s
     :return euvacIrr: ndarray
-        Values of the solar spectral irradiance in 37 distinct wavelength bands.
+        Values of the solar spectral irradiance in 37 distinct wavelength bands. In W/m^2
     """
     P = (F107A + F107)/2.0
     if type(F107) == np.ndarray:
@@ -105,58 +108,80 @@ def euvac(F107, F107A, statsFiles=None):
         euvacFlux = np.zeros((1, 37))
         euvacIrr = np.zeros((1, 37))
         P = np.array([P])
-    perturbedEuvIrradiance = np.zeros_like(euvacIrr)
-    savedPerts = np.zeros_like(euvacIrr)
-    # Include statistical data for calculating uncertainties via perturbations:
-    corMatFile = statsFiles[0]  # '../../../experiments/corMatEUVAC.pkl'
-    corMatEUVAC = tools.toolbox.loadPickle(corMatFile)
-    sigmaFileEUVAC = statsFiles[1]  # '../../../experiments/sigma_EUVAC.pkl'
-    STDEuvacResids = tools.toolbox.loadPickle(sigmaFileEUVAC)
-    for i in tqdm(range(euvacIrr.shape[0])):
+    if not statsFiles:
         # Loop across the F10.7 values
-        k = 0
-        P_n = []
-        # Loop across all of the bands:
-        for j in range(37):
-            # Percentage perturbation:
-            P_j = np.random.normal(0, 1.0)
-            P_n.append(P_j)
-            P_1 = P_n[0]
-            # Normalized Correlated Perturbation:
-            C_j1 = corMatEUVAC[0, j]  # Only consider correlation with the first wavelength bin
-            N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
-            # Actual Normalized Correlated Perturbation:
-            A_j = STDEuvacResids[j] * N_j
-            # Compute the flux:
-            wav = 0.5*(euvacTable[j, 2] + euvacTable[j, 1])
-            # dWav = euvacTable[j, 2] - euvacTable[j, 1]
-            # if dWav == 0:
-            #     dWav = None
-            F74113_i, A_i = refSpec(j+1)
-            fluxFactor = (1. + A_i*(P[i]-80.))
-            # if fluxFactor < 0.8:
-                # fluxFactor = 0.8
-            photonFlux = (F74113_i)*fluxFactor
-            # If P-80 is negative, set the flux to ZERO.
-            try:
-                photonFlux[photonFlux < 0] = 0
-            except:
-                if photonFlux < 0:
-                    photonFlux = 0
-            euvacFlux[i, k] = photonFlux
-            irrRes = spectralIrradiance(photonFlux, wavelength=wav)
-            euvacIrr[i, k] = irrRes
-            perturbedEuvIrradiance[i, k] = irrRes + A_j
-            savedPerts[i, j] = A_j
-            k += 1
+        for i in tqdm(range(euvacIrr.shape[0])):
+            k = 0
+            # Loop across all of the bands:
+            for j in range(37):
+                # Compute the flux:
+                wav = 0.5 * (euvacTable[j, 2] + euvacTable[j, 1])
+                F74113_i, A_i = refSpec(j + 1)
+                fluxFactor = (1. + A_i * (P[i] - 80.))
+                photonFlux = (F74113_i) * fluxFactor
+                try:
+                    photonFlux[photonFlux < 0] = 0
+                except:
+                    if photonFlux < 0:
+                        photonFlux = 0
+                euvacFlux[i, k] = photonFlux
+                irrRes = spectralAnalysis.spectralIrradiance(photonFlux, wavelength=wav)
+                euvacIrr[i, k] = irrRes
+                k += 1
+        return euvacFlux, euvacIrr, None, None, None
+    else:
+        perturbedEuvIrradiance = np.zeros_like(euvacIrr)
+        savedPerts = np.zeros_like(euvacIrr)
+        # Include statistical data for calculating uncertainties via perturbations:
+        corMatFile = statsFiles[0]  # '../../../experiments/corMatEUVAC.pkl'
+        corMatEUVAC = tools.toolbox.loadPickle(corMatFile)
+        sigmaFileEUVAC = statsFiles[1]  # '../../../experiments/sigma_EUVAC.pkl'
+        STDEuvacResids = tools.toolbox.loadPickle(sigmaFileEUVAC)
+        # Loop over the F10.7 values
+        for i in tqdm(range(euvacIrr.shape[0])):
+            k = 0
+            P_n = []
+            # Loop across all of the bands:
+            for j in range(37):
+                # Percentage perturbation:
+                P_j = np.random.normal(0, 1.0)
+                P_n.append(P_j)
+                P_1 = P_n[0]
+                # Normalized Correlated Perturbation:
+                C_j1 = corMatEUVAC[0, j]  # Only consider correlation with the first wavelength bin
+                N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
+                # Actual Normalized Correlated Perturbation:
+                A_j = STDEuvacResids[j] * N_j
+                # Compute the flux:
+                wav = 0.5*(euvacTable[j, 2] + euvacTable[j, 1])
+                # dWav = euvacTable[j, 2] - euvacTable[j, 1]
+                # if dWav == 0:
+                #     dWav = None
+                F74113_i, A_i = refSpec(j+1)
+                fluxFactor = (1. + A_i*(P[i]-80.))
+                # if fluxFactor < 0.8:
+                    # fluxFactor = 0.8
+                photonFlux = (F74113_i)*fluxFactor
+                # If P-80 is negative, set the flux to ZERO.
+                try:
+                    photonFlux[photonFlux < 0] = 0
+                except:
+                    if photonFlux < 0:
+                        photonFlux = 0
+                euvacFlux[i, k] = photonFlux
+                irrRes = spectralAnalysis.spectralIrradiance(photonFlux, wavelength=wav)
+                euvacIrr[i, k] = irrRes
+                perturbedEuvIrradiance[i, k] = irrRes + A_j
+                savedPerts[i, j] = A_j
+                k += 1
 
-    # Generate a correlation matrix of the perturbations:
-    cc2 = np.zeros((37, 37))
-    for iW1 in range(37):
-        for iW2 in range(37):
-            cc = tools.toolbox.get_cc(savedPerts[:, iW1], savedPerts[:, iW2])
-            cc2[iW1, iW2] = cc
+        # Generate a correlation matrix of the perturbations:
+        cc2 = np.zeros((37, 37))
+        for iW1 in range(37):
+            for iW2 in range(37):
+                cc = tools.toolbox.get_cc(savedPerts[:, iW1], savedPerts[:, iW2])
+                cc2[iW1, iW2] = cc
 
-    return euvacFlux, euvacIrr, perturbedEuvIrradiance, savedPerts, cc2
+        return euvacFlux, euvacIrr, perturbedEuvIrradiance, savedPerts, cc2
 #-----------------------------------------------------------------------------------------------------------------------
 

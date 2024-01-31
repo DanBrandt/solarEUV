@@ -22,6 +22,7 @@ from tools import toolbox
 # Directory Management
 neuvac_directory = '../NEUVAC/src/'
 neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
+neuvac_tableFile_Stan_Bands = '../NEUVAC/src/neuvac_table_stan_bands.txt'
 figures_directory = 'Figures/'
 results_directory = 'Results/'
 fism1_spectra_folder = '../empiricalModels/irradiances/FISM1/'
@@ -33,6 +34,8 @@ preparedDataFolder = '../experiments/preparedData'
 #-----------------------------------------------------------------------------------------------------------------------
 # Constants
 euvacTable = euvac.euvacTable
+from empiricalModels.models.SOLOMON import solomon
+solomonTable = solomon.solomonBands
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -58,14 +61,16 @@ if __name__=="__main__":
     F107 = omniF107
     F107A = omniF107A
 
-    # NOTE: EUVAC, and HEUVAC return spectral fluxes. They'll need to be converted to spectral irradiance.
-
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
 
+    # ==================================================================================================================
+    # GITM BINS
+    # ==================================================================================================================
+
     # FISM2 Results:
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
-    myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file, euv_data_59)
+    myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebin the data:
     myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59, zero=False)
     # Replace bad values with NaNs:
@@ -76,15 +81,11 @@ if __name__=="__main__":
     # Perform a non-linear fit between F10.7, F10.7A, and FISM2:
     neuvacTable = neuvac.neuvacFit([times, F107, F107A], myIrrTimesFISM2, myIrrDataAllFISM2Fixed, wavelengths=mids, label='FISM2')
 
-    # Collect the coefficients into a table (so they can be assembled for use in a function):
-    # neuvacTableSEEArr = np.asarray(neuvacTableSEE)
-    # neuvacTableFISM2Arr = np.asarray(neuvacTableFISM2)
-    # neuvacTable = np.concatenate((neuvacTableFISM2Arr, neuvacTableSEE), axis=0)
-
     # Print the coefficients to a file:
     with open(neuvac_directory+'neuvac_table.txt', 'w') as output:
         # Write the header information:
         output.write('This file contains coefficients for the current iteration of NEUVAC.\n'
+                     'NOTE THAT THIS FILE CONTAINS COEFFICIENTS FOR THE GITM BINS.\n'
                      'This file was created on '+datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')+'\n'
                      'File Authors: Brandt, Daniel A. and Ridley, Aaron J.\n'
                      'This version of NEUVAC was created by fitting nonlinear models between F10.7 and centered\n'
@@ -104,7 +105,8 @@ if __name__=="__main__":
         for i in range(neuvacTable.shape[0]):
             output.writelines(str(euv_data_59['short'][i])+' '+str(euv_data_59['long'][i])+' '+toolbox.stringList(neuvacTable[i, :])+'\n')
 
-    neuvacFlux, neuvacIrr = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile)
+    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands=None, tableFile=neuvac_tableFile)
+
     # View the result of the model fits, as a sanity check:
     # for i in range(neuvacIrr.shape[1]):
     #     plt.figure()
@@ -113,7 +115,57 @@ if __name__=="__main__":
     #     plt.legend(loc='best')
     #     plt.title('Irradiance Time Series at :'+str(np.round(myIrrDataWavelengthsFISM2[i],2))+' Angstroms')
 
-    # TODO: DO the same as the above, but for the FISM2 STAN BANDS
+    # ==================================================================================================================
+    # STANDARD BANDS
+    # ==================================================================================================================
+
+    # Load in FISM2 STAN BAND data:
+    # FISM2 Stan Band Results:
+    fism2file = '../empiricalModels/irradiances/FISM2/daily_bands_1947-2024.nc'
+    myIrrTimesFISM2Bands, wavelengthsFISM2Bands, myDataAllFISM2Bands, _ = obtainFism2(fism2file, bands=True)
+    myFluxDataAllFISM2Bands, myIrrDataAllFISM2Bands = myDataAllFISM2Bands
+
+    # Replace bad values with NaNs:
+    myIrrDataAllFISM2BandsFixed = myIrrDataAllFISM2Bands.copy()
+    myIrrDataAllFISM2BandsFixed[myIrrDataAllFISM2BandsFixed <= 0] = np.nan
+
+    # Perform a non-linear fit between F10.7, F10.7A, and FISM2:
+    midsS = (wavelengthsFISM2Bands * 10)[:-1]
+    neuvacTableS = neuvac.neuvacFit([times, F107, F107A], myIrrTimesFISM2Bands, myIrrDataAllFISM2BandsFixed[:, :-1], wavelengths=midsS,
+                                   label='FISM2S')
+
+    # Print the coefficients to a file:
+    with open(neuvac_directory+'neuvac_table_stan_bands.txt', 'w') as output:
+        # Write the header information:
+        output.write('This file contains coefficients for the current iteration of NEUVAC.\n'
+                     'NOTE THAT THIS FILE CONTAINS COEFFICIENTS FOR THE STAN BANDS.\n'
+                     'This file was created on '+datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')+'\n'
+                     'File Authors: Brandt, Daniel A. and Ridley, Aaron J.\n'
+                     'This version of NEUVAC was created by fitting nonlinear models between F10.7 and centered\n'
+                     '81-day averaged F10.7 and FISM2 decomposed into 23 wavelength bands conventionally used in\n'
+                     'numerous atmospheric models, such as SAMI3.\n'
+                     'The file is formatted as follows:\n'
+                     ' - First Column: Lower limit of the given wavelength bin in Angstroms.\n'
+                     ' - Second Column: Upper limit of the given wavelength bin in Angstroms.\n'
+                     ' - Third through Eighth colummns: Coefficients for the model.\n'
+                     'The functional form of the model is given by:\n'
+                     'Irr_i(t) = A_i * (F107(t) ** B_i) + C_i * (F107A(t) ** D_i) + E_i * (F107A(t) - F107(t)) + F_i\n'
+                     'where the irradiance in bin i (Irr_i) is a function of time t, and A_i through F_i are \n'
+                     'coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 81-day\n'
+                     'averaged F10.7 centered on the current day, respectively.\n'
+                     '-----------------------------------------------------------------------------------------------\n'
+                     'WAVES WAVEL A_i B_i C_i D_i E_i F_i\n')
+        for i in range(neuvacTableS.shape[0]):
+            output.writelines(str(solomonTable['short'][i])+' '+str(solomonTable['long'][i])+' '+toolbox.stringList(neuvacTableS[i, :])+'\n')
+
+    neuvacIrrS, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Stan_Bands)
+    # View the result of the model fits, as a sanity check:
+    # for i in range(neuvacIrrS.shape[1]):
+    #     plt.figure()
+    #     plt.plot(myIrrTimesFISM2Bands, myIrrDataAllFISM2BandsFixed[:, i], label='FISM2S')
+    #     plt.plot(times, neuvacIrrS[:, i], label='NEUVAC')
+    #     plt.legend(loc='best')
+    #     plt.title('Irradiance Time Series at :'+str(np.round(midsS[i],2))+' Angstroms')
 
     print('NEUVAC model fitting complete.')
 #-----------------------------------------------------------------------------------------------------------------------
