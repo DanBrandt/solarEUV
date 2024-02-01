@@ -89,8 +89,8 @@ if __name__=="__main__":
 
     # ==================================================================================================================
     # 2: Run the empirical models:
-    cached = False # TODO: Remove
-    if os.path.isfile(results_dir+'cachedData.pkl') == True and cached == True:
+    override = False # If True, recompute everything
+    if os.path.isfile(results_dir+'cachedData.pkl') == True or override == True:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
         iterations = cachedData["iterations"]
@@ -112,6 +112,13 @@ if __name__=="__main__":
         perturbedEuvIrradiance = cachedData["perturbedEuvIrradiance"]
         savedPertsHeuvac = cachedData["savedPertsHeuvac"]
         cc2Heuvac = cachedData["cc2Heuvac"]
+        ensemble_NeuvacIrrSolomon = cachedData["ensemble_NeuvacIrrSolomon"]
+        ensemble_average_NeuvacIrrSolomon = cachedData["ensemble_average_NeuvacIrrSolomon"]
+        ensemble_stddev_NeuvacIrrSolomon = cachedData["ensemble_stddev_NeuvacIrrSolomon"]
+        solomonFluxHFG = cachedData["solomonFluxHFG"]
+        solomonIrrHFG = cachedData["solomonIrrHFG"]
+        solomonFluxEUVAC = cachedData["solomonFluxEUVAC"]
+        solomonIrrEUVAC = cachedData["solomonIrrEUVAC"]
     else:
         cached=False
         # Generate NEUVAC data:
@@ -380,9 +387,7 @@ if __name__=="__main__":
     # ==================================================================================================================
     # 6: BEHAVIOR OF PERCENT DEVIATIONS FROM FISM2
     # i: Distribution of Percent Deviation
-    def percDev(x, y):
-        return np.divide(np.subtract(x, y), x) * 100
-    vfunc = np.vectorize(percDev)
+    vfunc = np.vectorize(toolbox.percDev)
     NEUVAC_resids = vfunc(ensemble_average_NeuvacIrr, correspondingFism2Irr)
     EUVAC_resids = vfunc(euvacIrr, correspondingFism2Irr)
     HEUVAC_resids = vfunc(heuvacIrr, correspondingFism2Irr)
@@ -391,7 +396,8 @@ if __name__=="__main__":
     HEUVAC_resids_flat = np.ravel(HEUVAC_resids)
     # bins = np.linspace(np.min([np.nanpercentile(NEUVAC_resids, 25), np.nanpercentile(EUVAC_resids, 25), np.nanpercentile(HEUVAC_resids[HEUVAC_resids != -np.inf], 25)]),
     #                    np.max([np.nanpercentile(NEUVAC_resids, 75), np.nanpercentile(EUVAC_resids, 75), np.nanpercentile(HEUVAC_resids, 75)]), num=100)
-    bins = np.linspace(np.nanmin(NEUVAC_resids_flat), np.nanmax(NEUVAC_resids_flat), num=100)
+    # bins = np.linspace(np.nanmin(NEUVAC_resids_flat), np.nanmax(NEUVAC_resids_flat), num=100)
+    bins = np.linspace(-25., 25., num=100)
 
     myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
     figHist = toolbox.plotHist(NEUVAC_resids_flat, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev.png', labels=myLabels)
@@ -402,7 +408,7 @@ if __name__=="__main__":
     NEUVAC_resids_1025 = NEUVAC_resids[:, -1]
     EUVAC_resids_75 = EUVAC_resids[:, 0]
     EUVAC_resids_475 = EUVAC_resids[:, 14]
-    EUVAC_resids_1025 = HEUVAC_resids[:, -1]
+    EUVAC_resids_1025 = EUVAC_resids[:, -1]
     HEUVAC_resids_75 = HEUVAC_resids[:, 0]
     HEUVAC_resids_475 = HEUVAC_resids[:, 14]
     HEUVAC_resids_1025 = HEUVAC_resids[:, -1]
@@ -713,52 +719,122 @@ if __name__=="__main__":
     plt.grid()
     plt.savefig(results_dir + 'MAPE_by_band_SOLOMON.png', dpi=300)
 
-    # 8F:
-    # NEUVAC_resids = vfunc(ensemble_average_NeuvacIrr, correspondingFism2Irr)
-    #     EUVAC_resids = vfunc(euvacIrr, correspondingFism2Irr)
-    #     HEUVAC_resids = vfunc(heuvacIrr, correspondingFism2Irr)
-    #     NEUVAC_resids_flat = np.ravel(NEUVAC_resids)
-    #     EUVAC_resids_flat = np.ravel(EUVAC_resids)
-    #     HEUVAC_resids_flat = np.ravel(HEUVAC_resids)
-    #     # bins = np.linspace(np.min([np.nanpercentile(NEUVAC_resids, 25), np.nanpercentile(EUVAC_resids, 25), np.nanpercentile(HEUVAC_resids[HEUVAC_resids != -np.inf], 25)]),
-    #     #                    np.max([np.nanpercentile(NEUVAC_resids, 75), np.nanpercentile(EUVAC_resids, 75), np.nanpercentile(HEUVAC_resids, 75)]), num=100)
-    #     bins = np.linspace(np.nanmin(NEUVAC_resids_flat), np.nanmax(NEUVAC_resids_flat), num=100)
-    #
-    #     myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
-    #     figHist = toolbox.plotHist(NEUVAC_resids_flat, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev.png', labels=myLabels)
-    #
-    #     # ii: Behavior of Percent Deviations as a Function Solar Activity (F10.7)
-    #     NEUVAC_resids_75 = NEUVAC_resids[:, 0]
-    #     NEUVAC_resids_475 = NEUVAC_resids[:, 14]
-    #     NEUVAC_resids_1025 = NEUVAC_resids[:, -1]
-    #     EUVAC_resids_75 = EUVAC_resids[:, 0]
-    #     EUVAC_resids_475 = EUVAC_resids[:, 14]
-    #     EUVAC_resids_1025 = HEUVAC_resids[:, -1]
-    #     HEUVAC_resids_75 = HEUVAC_resids[:, 0]
-    #     HEUVAC_resids_475 = HEUVAC_resids[:, 14]
-    #     HEUVAC_resids_1025 = HEUVAC_resids[:, -1]
-    #     fig, axs = plt.subplots(nrows=1, ncols=3)
-    #     axs[0].scatter(F107[sortF107], NEUVAC_resids_75[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
-    #     axs[0].scatter(F107[sortF107], EUVAC_resids_75[sortF107], color='green', label='EUVAC', alpha=0.6)
-    #     axs[0].scatter(F107[sortF107], HEUVAC_resids_75[sortF107], color='red', label='HEUVAC', alpha=0.6)
-    #     axs[0].set_xlabel('F10.7 (sfu)')
-    #     axs[0].set_ylabel('Percent Deviation from FISM2 (%)')
-    #     axs[0].set_title('75 $\mathrm{\AA}$')
-    #     axs[0].legend(loc='best')
-    #     axs[1].scatter(F107[sortF107], NEUVAC_resids_475[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
-    #     axs[1].scatter(F107[sortF107], EUVAC_resids_475[sortF107], color='green', label='EUVAC', alpha=0.6)
-    #     axs[1].scatter(F107[sortF107], HEUVAC_resids_475[sortF107], color='red', label='HEUVAC', alpha=0.6)
-    #     axs[1].set_xlabel('F107 (sfu)')
-    #     axs[1].set_title('475 $\mathrm{\AA}$')
-    #     axs[1].legend(loc='best')
-    #     axs[2].scatter(F107[sortF107], NEUVAC_resids_1025[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
-    #     axs[2].scatter(F107[sortF107], EUVAC_resids_1025[sortF107], color='green', label='EUVAC', alpha=0.6)
-    #     axs[2].scatter(F107[sortF107], HEUVAC_resids_1025[sortF107], color='red', label='HEUVAC', alpha=0.6)
-    #     axs[2].set_xlabel('F107 (sfu)')
-    #     axs[2].set_title('1025 $\mathrm{\AA}$')
-    #     axs[2].legend(loc='best')
-    #     plt.savefig(results_dir + 'percDev_by_F107.png', dpi=300)
+    # 8F: Distribution of Percent Deviation
+    NEUVAC_resids_Solomon = vfunc(ensemble_average_NeuvacIrrSolomon, correspondingIrrFISM2StanBands[:, :-1])
+    EUVAC_resids_Solomon = vfunc(solomonIrrEUVAC, correspondingIrrFISM2StanBands[:, :-1])
+    HFG_resids_Solomon = vfunc(solomonIrrHFG, correspondingIrrFISM2StanBands[:, :-1])
+    NEUVAC_resids_flat_Solomon = np.ravel(NEUVAC_resids_Solomon)
+    EUVAC_resids_flat_Solomon = np.ravel(EUVAC_resids_Solomon)
+    HFG_resids_flat_Solomon = np.ravel(HFG_resids_Solomon)
+    # bins = np.linspace(np.min([np.nanpercentile(NEUVAC_resids, 25), np.nanpercentile(EUVAC_resids, 25), np.nanpercentile(HEUVAC_resids[HEUVAC_resids != -np.inf], 25)]),
+    #                    np.max([np.nanpercentile(NEUVAC_resids, 75), np.nanpercentile(EUVAC_resids, 75), np.nanpercentile(HEUVAC_resids, 75)]), num=100)
+    # bins = np.linspace(np.nanmin(NEUVAC_resids_flat_Solomon), np.nanmax(NEUVAC_resids_flat_Solomon), num=100)
+    bins = np.linspace(-25., 25., num=100)
+    myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
+    figHist = toolbox.plotHist(NEUVAC_resids_flat_Solomon, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev_SOLOMON.png', labels=myLabels)
 
+    # 8G: Behavior of Percent Deviations as a Function Solar Activity (F10.7)
+    NEUVAC_resids_25_Solomon = NEUVAC_resids_Solomon[:, 3]
+    NEUVAC_resids_595_Solomon = NEUVAC_resids_Solomon[:, 10]
+    NEUVAC_resids_1007_Solomon = NEUVAC_resids_Solomon[:, -2]
+    EUVAC_resids_25_Solomon = EUVAC_resids_Solomon[:, 3]
+    EUVAC_resids_595_Solomon = EUVAC_resids_Solomon[:, 10]
+    EUVAC_resids_1007_Solomon = EUVAC_resids_Solomon[:, -2]
+    HFG_resids_25_Solomon = HFG_resids_Solomon[:, 3]
+    HFG_resids_595_Solomon = HFG_resids_Solomon[:, 10]
+    HFG_resids_1007_Solomon = HFG_resids_Solomon[:, -2]
+    fig, axs = plt.subplots(nrows=1, ncols=3)
+    axs[0].scatter(F107[sortF107], EUVAC_resids_25_Solomon[sortF107], color='green', label='EUVAC', alpha=0.6)
+    axs[0].scatter(F107[sortF107], HFG_resids_25_Solomon[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[0].scatter(F107[sortF107], NEUVAC_resids_25_Solomon[sortF107], color='orange',
+                   label='NEUVAC (n=' + str(iterations) + ')', alpha=0.6)
+    axs[0].set_xlabel('F10.7 (sfu)')
+    axs[0].set_ylabel('Percent Deviation from FISM2 (%)')
+    axs[0].set_title('25 $\mathrm{\AA}$')
+    axs[0].legend(loc='best')
+    axs[1].scatter(F107[sortF107], NEUVAC_resids_595_Solomon[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    axs[1].scatter(F107[sortF107], EUVAC_resids_595_Solomon[sortF107], color='green', label='EUVAC', alpha=0.6)
+    axs[1].scatter(F107[sortF107], HFG_resids_595_Solomon[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[1].set_xlabel('F107 (sfu)')
+    axs[1].set_title('595 $\mathrm{\AA}$')
+    axs[1].legend(loc='best')
+    axs[2].scatter(F107[sortF107], NEUVAC_resids_1007_Solomon[sortF107], color='orange', label='NEUVAC (n='+str(iterations)+')', alpha=0.6)
+    axs[2].scatter(F107[sortF107], EUVAC_resids_1007_Solomon[sortF107], color='green', label='EUVAC', alpha=0.6)
+    axs[2].scatter(F107[sortF107], HFG_resids_1007_Solomon[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[2].set_xlabel('F107 (sfu)')
+    axs[2].set_title('1007 $\mathrm{\AA}$')
+    axs[2].legend(loc='best')
+    plt.savefig(results_dir + 'percDev_by_F107_SOLOMON.png', dpi=300)
+
+    # 8H: INTEGRATED ENERGY (ACROSS THE SUN-FACING SIDE OF THE EARTH)
+    fism2SumsSolomon = np.zeros(ensemble_average_NeuvacIrrSolomon.shape[0])
+    for i in range(len(fism2SumsSolomon)):
+        fism2SumsSolomon[i] = np.nansum(correspondingIrrFISM2StanBands[i, :])
+    fism2IntegEnergySolomon = A*fism2SumsSolomon
+    neuvacSumsSolomon = np.zeros_like(fism2SumsSolomon)
+    for i in range(len(fism2SumsSolomon)):
+        neuvacSumsSolomon[i] = np.nansum(ensemble_average_NeuvacIrr[i, :])
+    neuvacIntegEnergySolomon = A*neuvacSumsSolomon
+    euvacSumsSolomon = np.zeros_like(fism2SumsSolomon)
+    for i in range(len(fism2SumsSolomon)):
+        euvacSumsSolomon[i] = np.nansum(solomonIrrEUVAC[i, :])
+    euvacIntegEnergySolomon = A*euvacSumsSolomon
+    hfgSumsSolomon = np.zeros_like(fism2SumsSolomon)
+    for i in range(len(fism2SumsSolomon)):
+        hfgSumsSolomon[i] = np.nansum(solomonIrrHFG[i, :])
+    hfgIntegEnergySolomon = A * hfgSumsSolomon
+
+    fig, axs = plt.subplots(nrows=3, ncols=1)
+    #
+    axs[0].plot(lowSolarTimesLonger, fism2IntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='FISM2')
+    axs[0].plot(lowSolarTimesLonger, neuvacIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='NEUVAC (n=' + str(iterations) + ')')
+    axs[0].plot(lowSolarTimesLonger, euvacIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='EUVAC')
+    axs[0].plot(lowSolarTimesLonger, hfgIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='HFG', color='purple')
+    axs[0].set_ylabel('Integrated Energy (GW)')
+    axs[0].legend(loc='best')
+    axs[0].set_title('Low Solar Activity: '+str(lowSolarTimeBoundsLonger[0])[:-9]+' to '+str(lowSolarTimeBoundsLonger[-1])[:-9])
+    #
+    axs[1].plot(highSolarTimesLonger, fism2IntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='FISM2')
+    axs[1].plot(highSolarTimesLonger, neuvacIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='NEUVAC (n=' + str(iterations) + ')')
+    axs[1].plot(highSolarTimesLonger, euvacIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='EUVAC')
+    axs[1].plot(highSolarTimesLonger, hfgIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='HFG', color='purple')
+    axs[1].set_ylabel('Integrated Energy (GW)')
+    axs[1].legend(loc='best')
+    axs[1].set_title('High Solar Activity: '+str(highSolarTimeBoundsLonger[0])[:-9]+' to '+str(highSolarTimeBoundsLonger[-1])[:-9])
+    #
+    axs[2].plot(times, fism2IntegEnergySolomon / (1e9), label='FISM2')
+    axs[2].plot(times, neuvacIntegEnergySolomon / (1e9), label='NEUVAC (n='+str(iterations)+')')
+    axs[2].plot(times, euvacIntegEnergySolomon / (1e9), label='EUVAC')
+    axs[2].plot(times, hfgIntegEnergySolomon / (1e9), label='HFG', color='purple')
+    axs[2].set_xlabel('Time')
+    axs[2].set_ylabel('Integrated Energy (GW)')
+    axs[2].legend(loc='best')
+    axs[2].set_title('Solar Cycle 20 through Ascending Phase of Solar Cycle 25')
+    # Save the figure
+    fig.tight_layout()
+    fig.suptitle('Earth-Incident Energy Deposition', fontsize=16, fontweight='bold')
+    fig.subplots_adjust(top=0.9)
+    plt.savefig(results_dir + 'integrated_energy_SOLOMON.png', dpi=300)
+    #
+    # TABLE: Compute and print the MAPE for all models during low, moderate, and high solar activity (see Jin, et al. 2021 for definitions for low/moderate/high: https://agupubs.onlinelibrary.wiley.com/doi/10.1029/2020JA028932)
+    neuvacEnergyLowMapeSolomon = toolbox.mape(neuvacIntegEnergySolomon[lowSolarActivityInds], fism2IntegEnergySolomon[lowSolarActivityInds]) * 100
+    euvacEnergyLowMapeSolomon = toolbox.mape(euvacIntegEnergySolomon[lowSolarActivityInds], fism2IntegEnergySolomon[lowSolarActivityInds]) * 100
+    heuvacEnergyLowMapeSolomon = toolbox.mape(hfgIntegEnergySolomon[lowSolarActivityInds], fism2IntegEnergySolomon[lowSolarActivityInds]) * 100
+    neuvacEnergyModMapeSolomon = toolbox.mape(neuvacIntegEnergySolomon[modSolarActivityInds], fism2IntegEnergySolomon[modSolarActivityInds]) * 100
+    euvacEnergyModMapeSolomon = toolbox.mape(euvacIntegEnergySolomon[modSolarActivityInds], fism2IntegEnergySolomon[modSolarActivityInds]) * 100
+    heuvacEnergyModMapeSolomon = toolbox.mape(hfgIntegEnergySolomon[modSolarActivityInds], fism2IntegEnergySolomon[modSolarActivityInds]) * 100
+    neuvacEnergyHighMapeSolomon = toolbox.mape(neuvacIntegEnergySolomon[highSolarActivityInds], fism2IntegEnergySolomon[highSolarActivityInds]) * 100
+    euvacEnergyHighMapeSolomon = toolbox.mape(euvacIntegEnergySolomon[highSolarActivityInds], fism2IntegEnergySolomon[highSolarActivityInds]) * 100
+    heuvacEnergyHighMapeSolomon = toolbox.mape(hfgIntegEnergySolomon[highSolarActivityInds], fism2IntegEnergySolomon[highSolarActivityInds]) * 100
+    print('NEUVAC MAPE (SOLOMON): ' + str(np.round(neuvacEnergyLowMapeSolomon, 2)) + '% (low activity), ' + str(
+        np.round(neuvacEnergyModMapeSolomon, 2)) + '% (moderate activity), ' + str(
+        np.round(neuvacEnergyHighMapeSolomon, 2)) + '% (high activity)')
+    print('EUVAC MAPE (SOLOMON): ' + str(np.round(euvacEnergyLowMapeSolomon, 2)) + '% (low activity), ' + str(
+        np.round(euvacEnergyModMapeSolomon, 2)) + '% (moderate activity), ' + str(
+        np.round(euvacEnergyHighMapeSolomon, 2)) + '% (high activity)')
+    print('HFG MAPE (SOLOMON): ' + str(np.round(heuvacEnergyLowMape, 2)) + '% (low activity), ' + str(
+        np.round(heuvacEnergyModMapeSolomon, 2)) + '% (moderate activity), ' + str(
+        np.round(heuvacEnergyHighMapeSolomon, 2)) + '% (high activity)')
     # ==================================================================================================================
     # Exit with a zero error code:
     sys.exit(0)

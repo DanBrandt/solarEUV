@@ -1052,7 +1052,9 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None):
     plt.hist(data, bins=bins, density=True, color=color, label='Data')
     validLocs = ~np.isnan(data)
     xVals = np.linspace(bins[0], bins[-1], 500)
-    a, loc, scale = stats.skewnorm.fit(data[validLocs])
+    cleanData = data[validLocs]
+    prunedData = cleanData[np.where((cleanData >= bins[0]) & (cleanData <= bins[-1]))[0]]
+    a, loc, scale = stats.skewnorm.fit(prunedData)
     p = stats.skewnorm.pdf(xVals, a, loc, scale)
     plt.plot(xVals, p, 'k', linewidth=2, label=r'Fit: $\alpha$='+str(np.round(a, 2))+r', $\xi$='+str(np.round(loc, 2))+r', $\omega$='+str(np.round(scale, 2)))
     plt.xlabel(labels[0])
@@ -1077,4 +1079,14 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None):
         plt.savefig(saveLoc, dpi=300)
         print('Saved figure to '+saveLoc)
     return fig
+
+def percDev(x, y):
+    """
+    Compute the percentage deviation (a.k.a. percentage error).
+    :param x: float or arraylike
+        The observed value(s).
+    :param y: float or arraylike
+        The true value(s).
+    """
+    return np.divide(np.subtract(x, y), y) * 100
 #-----------------------------------------------------------------------------------------------------------------------
