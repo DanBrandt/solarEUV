@@ -220,7 +220,7 @@ if __name__=="__main__":
     ax[0, 1].scatter(sortedP, euvacIrr[sortIndsP, 24], label='EUVAC', color='tab:green', alpha=0.6)
     ax[0, 1].scatter(sortedP, heuvacIrr[sortIndsP, 24], label='HEUVAC', color='tab:red', alpha=0.6)
     ax[0, 1].legend(loc='best')
-    ax[0, 1].set_title('725 $\mathrm{\AA}$')
+    ax[0, 1].set_title('724 $\mathrm{\AA}$')
     # 975 (index 31)
     ax[0, 2].scatter(sortedP, correspondingFism2Irr[sortIndsP, 31], label='FISM2', alpha=0.6)
     ax[0, 2].scatter(sortedP, euvacIrr[sortIndsP, 31], label='EUVAC', color='tab:green', alpha=0.6)
@@ -703,7 +703,7 @@ if __name__=="__main__":
     axs[0, 1].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 11], label='NEUVAC (n='+str(iterations)+')', lw=3)
     axs[0, 1].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 11], label='EUVAC', lw=3)
     axs[0, 1].plot(lowSolarTimes, solomonIrrHFG[lowSolarTimeInds, 11], label='HFG', lw=3, color='purple')
-    axs[0, 1].set_title('725 $\mathrm{\AA}$')
+    axs[0, 1].set_title('724 $\mathrm{\AA}$')
     axs[0, 1].legend(loc='best')
     axs[0, 1].set_xticklabels(axs[0, 1].get_xticklabels(), rotation=45, ha='right')
     # Top-right: Low Solar Activity 1007 A
@@ -728,7 +728,7 @@ if __name__=="__main__":
     axs[1, 1].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 11], label='NEUVAC-S (n='+str(iterations)+')', lw=3)
     axs[1, 1].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 11], label='EUVAC-S', lw=3)
     axs[1, 1].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, 11], label='HFG', lw=3, color='purple')
-    axs[1, 1].set_title('725 $\mathrm{\AA}$')
+    axs[1, 1].set_title('724 $\mathrm{\AA}$')
     axs[1, 1].legend(loc='best')
     axs[1, 1].set_xticklabels(axs[1, 1].get_xticklabels(), rotation=45, ha='right')
     # Bottom-right: High Solar Activity 1007 A
@@ -837,26 +837,26 @@ if __name__=="__main__":
 
     # 8G: Behavior of Percent Deviations as a Function Solar Activity (F10.7)
     NEUVAC_resids_430_Solomon = NEUVAC_resids_Solomon[:, 9]
-    NEUVAC_resids_725_Solomon = NEUVAC_resids_Solomon[:, 11]
+    NEUVAC_resids_724_Solomon = NEUVAC_resids_Solomon[:, 11]
     NEUVAC_resids_981_Solomon = NEUVAC_resids_Solomon[:, 19]
     EUVAC_resids_430_Solomon = EUVAC_resids_Solomon[:, 9]
-    EUVAC_resids_725_Solomon = EUVAC_resids_Solomon[:, 1]
+    EUVAC_resids_724_Solomon = EUVAC_resids_Solomon[:, 1]
     EUVAC_resids_981_Solomon = EUVAC_resids_Solomon[:, 19]
     HFG_resids_430_Solomon = HFG_resids_Solomon[:, 9]
-    HFG_resids_725_Solomon = HFG_resids_Solomon[:, 1]
+    HFG_resids_724_Solomon = HFG_resids_Solomon[:, 1]
     HFG_resids_981_Solomon = HFG_resids_Solomon[:, 19]
     fig, axs = plt.subplots(nrows=1, ncols=3)
     axs[0].scatter(F107[sortF107], NEUVAC_resids_430_Solomon[sortF107], color='orange',
-                   label='NEUVAC (n=' + str(iterations) + ')', alpha=0.6)
+                   label='NEUVAC-S (n=' + str(iterations) + ')', alpha=0.6)
     axs[0].scatter(F107[sortF107], EUVAC_resids_430_Solomon[sortF107], color='green', label='EUVAC-S', alpha=0.6)
     axs[0].scatter(F107[sortF107], HFG_resids_430_Solomon[sortF107], color='purple', label='HFG', alpha=0.6)
     axs[0].set_xlabel('F10.7 (sfu)')
     axs[0].set_ylabel('Percent Deviation from FISM2 (%)')
     axs[0].set_title('430 $\mathrm{\AA}$')
     axs[0].legend(loc='best')
-    axs[1].scatter(F107[sortF107], NEUVAC_resids_725_Solomon[sortF107], color='orange', label='NEUVAC-S (n='+str(iterations)+')', alpha=0.6)
-    axs[1].scatter(F107[sortF107], EUVAC_resids_725_Solomon[sortF107], color='green', label='EUVAC-S', alpha=0.6)
-    axs[1].scatter(F107[sortF107], HFG_resids_725_Solomon[sortF107], color='purple', label='HFG', alpha=0.6)
+    axs[1].scatter(F107[sortF107], NEUVAC_resids_724_Solomon[sortF107], color='orange', label='NEUVAC-S (n='+str(iterations)+')', alpha=0.6)
+    axs[1].scatter(F107[sortF107], EUVAC_resids_724_Solomon[sortF107], color='green', label='EUVAC-S', alpha=0.6)
+    axs[1].scatter(F107[sortF107], HFG_resids_724_Solomon[sortF107], color='purple', label='HFG', alpha=0.6)
     axs[1].set_xlabel('F107 (sfu)')
     axs[1].set_title('725 $\mathrm{\AA}$')
     axs[1].legend(loc='best')
