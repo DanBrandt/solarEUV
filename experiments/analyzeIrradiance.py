@@ -63,10 +63,18 @@ if __name__=="__main__":
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
-    # Rebin the data:
+    # Rebin the data (old method):
     myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
                                                                     zero=False)
-    fism2Irr = rebinnedIrrDataFISM2[:, 7:44]
+    # Rebin the data (new method, no zeroing):
+    myIrrDataWavelengthsFISM2_n, rebinnedIrrDataFISM2_n = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
+                                                                    zero=False)
+    # Rebin the data (new method, with zeroing):
+    # myIrrDataWavelengthsFISM2_z, rebinnedIrrDataFISM2_z = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2,
+    #                                                                       euv_data_59,
+    #                                                                       zero=True)
+
+    fism2Irr = rebinnedIrrDataFISM2_n[:, 7:44] # rebinnedIrrDataFISM2[:, 7:44]
     # Harmonize the times for NEUVAC and FISM2:
     correspondingIndsFISM2 = np.where((myIrrTimesFISM2 >= times[0]) & (myIrrTimesFISM2 <= times[-1]))[0]
     correspondingIrrTimesFISM2 = myIrrTimesFISM2[correspondingIndsFISM2]
@@ -90,7 +98,7 @@ if __name__=="__main__":
     # ==================================================================================================================
     # 2: Run the empirical models:
     override = False # If True, recompute everything
-    if os.path.isfile(results_dir+'cachedData.pkl') == True or override == True:
+    if os.path.isfile(results_dir+'cachedData.pkl') == True and override == False:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
         iterations = cachedData["iterations"]

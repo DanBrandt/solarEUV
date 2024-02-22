@@ -303,12 +303,14 @@ if __name__=="__main__":
     filteredF107 = F107filter(cleanedTimes, cleanedF107)
     # Compute the centered rolling 81-day average of F10.7:
     averagedF107 = rollingAverage(filteredF107, window_length=81)
+    # Compute the 54-day average of F10.7 with a backwards window:
+    backwardsAveragedF107 = rollingAverage(filteredF107, window_length=54, center=False)
     # Plot as a sanity-check:
-    # plt.figure(); plt.plot(cleanedTimes, cleanedF107); plt.plot(cleanedTimes, averagedF107); plt.show()
+    # import matplotlib; matplotlib.use('Qt5Agg'); import matplotlib.pyplot as plt; plt.figure(); plt.plot(cleanedTimes, cleanedF107); plt.plot(cleanedTimes, averagedF107); plt.plot(cleanedTimes, backwardsAveragedF107); plt.show()
     # Save the data to pickle files:
     savePickle(cleanedTimes, saveLoc+'F107times.pkl')
     savePickle(cleanedF107, saveLoc+'F107vals.pkl')
-    savePickle(averagedF107, saveLoc+'F107averageVals.pkl')
+    savePickle(backwardsAveragedF107, saveLoc+'F107averageVals.pkl') # averagedF107
     # -------------------------------
     # Do all of the above with NASA OMNIWEB data:
     omniSaveloc = '../solarIndices/F107/OMNIWeb/'

@@ -72,7 +72,7 @@ if __name__=="__main__":
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebin the data:
-    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59, zero=False)
+    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59, zero=False) # toolbox.rebin
     # Replace bad values with NaNs:
     myIrrDataAllFISM2Fixed = rebinnedIrrDataFISM2.copy()
     myIrrDataAllFISM2Fixed[myIrrDataAllFISM2Fixed <= 0 ] = np.nan
@@ -88,8 +88,8 @@ if __name__=="__main__":
                      'NOTE THAT THIS FILE CONTAINS COEFFICIENTS FOR THE GITM BINS.\n'
                      'This file was created on '+datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')+'\n'
                      'File Authors: Brandt, Daniel A. and Ridley, Aaron J.\n'
-                     'This version of NEUVAC was created by fitting nonlinear models between F10.7 and centered\n'
-                     '81-day averaged F10.7 and FISM2 decomposed into 59 wavelength bands conventionally used in\n'
+                     'This version of NEUVAC was created by fitting nonlinear models between F10.7 and preceding\n'
+                     '54-day averaged F10.7 and FISM2 decomposed into 59 wavelength bands conventionally used in\n'
                      'the GITM and Aether models.\n'
                      'The file is formatted as follows:\n'
                      ' - First Column: Lower limit of the given wavelength bin in Angstroms.\n'
@@ -98,8 +98,8 @@ if __name__=="__main__":
                      'The functional form of the model is given by:\n'
                      'Irr_i(t) = A_i * (F107(t) ** B_i) + C_i * (F107A(t) ** D_i) + E_i * (F107A(t) - F107(t)) + F_i\n'
                      'where the irradiance in bin i (Irr_i) is a function of time t, and A_i through F_i are \n'
-                     'coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 81-day\n'
-                     'averaged F10.7 centered on the current day, respectively.\n'
+                     'coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 54-day\n'
+                     'averaged F10.7 computed with a backwards-looking window, respectively.\n'
                      '-----------------------------------------------------------------------------------------------\n'
                      'WAVES WAVEL A_i B_i C_i D_i E_i F_i\n')
         for i in range(neuvacTable.shape[0]):
@@ -141,8 +141,8 @@ if __name__=="__main__":
                      'NOTE THAT THIS FILE CONTAINS COEFFICIENTS FOR THE STAN BANDS.\n'
                      'This file was created on '+datetime.strftime(datetime.now(), '%Y-%m-%dT%H:%M:%S')+'\n'
                      'File Authors: Brandt, Daniel A. and Ridley, Aaron J.\n'
-                     'This version of NEUVAC was created by fitting nonlinear models between F10.7 and centered\n'
-                     '81-day averaged F10.7 and FISM2 decomposed into 23 wavelength bands conventionally used in\n'
+                     'This version of NEUVAC was created by fitting nonlinear models between F10.7 and preceding\n'
+                     '54-day averaged F10.7 and FISM2 decomposed into 23 wavelength bands conventionally used in\n'
                      'numerous atmospheric models, such as SAMI3.\n'
                      'The file is formatted as follows:\n'
                      ' - First Column: Lower limit of the given wavelength bin in Angstroms.\n'
@@ -151,8 +151,8 @@ if __name__=="__main__":
                      'The functional form of the model is given by:\n'
                      'Irr_i(t) = A_i * (F107(t) ** B_i) + C_i * (F107A(t) ** D_i) + E_i * (F107A(t) - F107(t)) + F_i\n'
                      'where the irradiance in bin i (Irr_i) is a function of time t, and A_i through F_i are \n'
-                     'coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 81-day\n'
-                     'averaged F10.7 centered on the current day, respectively.\n'
+                     'coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 54-day\n'
+                     'averaged F10.7 computed with a backwards-looking window, respectively.\n'
                      '-----------------------------------------------------------------------------------------------\n'
                      'WAVES WAVEL A_i B_i C_i D_i E_i F_i\n')
         for i in range(neuvacTableS.shape[0]):

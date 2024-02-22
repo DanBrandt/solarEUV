@@ -77,8 +77,8 @@ if __name__=="__main__":
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebin the data:
-    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
-                                                                    zero=False)
+    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
+                                                                    zero=False) # toolbox.rebin
     rebinnedIrrUncFISM2 = np.zeros_like(rebinnedIrrDataFISM2)
     for column in range(rebinnedIrrDataFISM2.shape[1]):
         rebinnedIrrUncFISM2[:, column] = toolbox.rollingStd(rebinnedIrrDataFISM2[:, column], 2)
@@ -257,7 +257,7 @@ if __name__=="__main__":
     plt.savefig('Uncertainty/corMatsEUVAC.png', dpi=300)
 
     # 6b: HEUVAC
-    heuvac_wav, heuvacFlux, heuvacIrr = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl',
+    heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl',
                                                                                            'sigma_HEUVAC.pkl'])
     residualsArrayHEUVAC = np.subtract(heuvacIrr, correspondingIrrFISM2[:, 7:44])
     toolbox.savePickle(residualsArrayHEUVAC, 'residualsArrayHEUVAC.pkl')

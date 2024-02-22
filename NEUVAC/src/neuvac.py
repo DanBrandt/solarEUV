@@ -331,20 +331,3 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
     fitParams = np.asarray(fitParams)
     return fitParams
 #-----------------------------------------------------------------------------------------------------------------------
-
-#-----------------------------------------------------------------------------------------------------------------------
-# Execution (for debugging):
-if __name__ == '__main__':
-    # Generate some sample data:
-    from random import randint
-    f107 = np.array([randint(0, 200) for p in range(0, 10)])
-    f107a = np.array([randint(0, 200) for p in range(0, 10)])
-    neuvacRes = neuvacEUV(f107, f107a, tableFile='neuvac_table.txt')
-
-    # Old Flux Calculation:
-    # Flux calculation
-    # solarFlux[i, k] = RidleySlopes[j, 0] * (f107[i] ** RidleyPowers[j, 0]) + \
-    #                   RidleySlopes[j, 1] * (f107a[i] ** RidleyPowers[j, 1]) + \
-    #                   RidleySlopes[j, 2] * (f107a[i] - f107[i]) + RidleyIntercepts[j]
-    # wvavg = (WAVEL[j] + WAVES[j]) / 2.
-    # fluxRes = solarFlux[i, k] * wvavg * 1e-10 / (6.626e-34 * 2.998e8)  # / 10.

@@ -248,7 +248,7 @@ def fractionalDOY(myDatetime):
     return fracDOY
 
 # TODO: Fix the function below to handle VERY LARGE data gaps.
-def rollingAverage(myData, window_length=1, impute_edges=True):
+def rollingAverage(myData, window_length=1, impute_edges=True, center=True):
     """
     Using pandas, compute a rolling average of over 'data' using a window length of 'windowlength'. Sets the leading and
     trailing windows to the values of the original data.
@@ -258,18 +258,19 @@ def rollingAverage(myData, window_length=1, impute_edges=True):
         The size of the window over which to average.
     :param impute_edges: bool
         A boolean determining whether or not the edges will be interpolated. Default is True.
+    :param center: bool
+        A boolean determining whether or not the centered average will be used.
     :return: rolled, arraylike
         The rolling average data.
     """
     myDataframe = pd.DataFrame(data=myData, columns=['Var'])
-    myDataframe['Rolling'] = myDataframe['Var'].rolling(window=window_length, center=True).mean()
+    myDataframe['Rolling'] = myDataframe['Var'].rolling(window=window_length, center=center).mean()
     firstValidIndex = myDataframe['Rolling'].first_valid_index()
     lastValidIndex = myDataframe['Rolling'].last_valid_index()
     if impute_edges == True:
         # Sample x-axis:
-        windowSize = len(myDataframe) - lastValidIndex
-        sampleXaxis = np.linspace(0, windowSize, windowSize)
-        middleIndex = int(0.5*windowSize)
+        sampleXaxis = np.linspace(0, window_length, window_length)
+        middleIndex = int(0.5*window_length)
         # Use cubic interpolation to fill the gaps on the edges:
         # leadingEdgeStartingVal = myDataframe['Var'][0]
         # goodLeadingVals = myDataframe['Var'][:window_length][myDataframe['Var'][:window_length] > 0]
@@ -281,17 +282,17 @@ def rollingAverage(myData, window_length=1, impute_edges=True):
                                     [leadingEdgeStartingVal, leadingEdgeMiddleVal, leadingEndingVal])
         leadingImputedValues = leadingSpline(sampleXaxis)
         # plt.figure(); plt.plot(sampleXaxis, myDataframe['Var'][:window_length].values); plt.plot(sampleXaxis, leadingImputedValues); plt.show()
+        if center==True:
+            trailingEdgeStartingVal = myDataframe['Rolling'][lastValidIndex]
+            trailingEndingVal = myDataframe['Var'].values[-1]
+            trailingEdgeMiddleVal = np.mean([trailingEdgeStartingVal, trailingEndingVal])
+            trailingSpline = CubicSpline([sampleXaxis[0], sampleXaxis[middleIndex], sampleXaxis[-1]],
+                                        [trailingEdgeStartingVal, trailingEdgeMiddleVal, trailingEndingVal])
+            trailingImputedValues = trailingSpline(sampleXaxis)
+            # plt.figure(); plt.plot(sampleXaxis, myDataframe['Var'][-window_length:].values); plt.plot(sampleXaxis, trailingImputedValues); plt.show()
 
-        trailingEdgeStartingVal = myDataframe['Rolling'][lastValidIndex]
-        trailingEndingVal = myDataframe['Var'].values[-1]
-        trailingEdgeMiddleVal = np.mean([trailingEdgeStartingVal, trailingEndingVal])
-        trailingSpline = CubicSpline([sampleXaxis[0], sampleXaxis[middleIndex], sampleXaxis[-1]],
-                                    [trailingEdgeStartingVal, trailingEdgeMiddleVal, trailingEndingVal])
-        trailingImputedValues = trailingSpline(sampleXaxis)
-        # plt.figure(); plt.plot(sampleXaxis, myDataframe['Var'][-window_length:].values); plt.plot(sampleXaxis, trailingImputedValues); plt.show()
-
-        myDataframe['Rolling'][:windowSize] = leadingImputedValues
-        myDataframe['Rolling'][-windowSize:] = trailingImputedValues
+            myDataframe['Rolling'][:window_length] = leadingImputedValues
+            myDataframe['Rolling'][-window_length:] = trailingImputedValues
     else:
         myDataframe['Rolling'][:window_length] = myDataframe['Var'][:window_length]
         myDataframe['Rolling'][-window_length:] = myDataframe['Var'][-window_length:]
@@ -836,6 +837,49 @@ def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True, un
     # If only a single spectrum was generated, remove the singleton dimension:
     if newData.shape[0] == 1:
         newData = np.squeeze(newData)
+
+    return newWaves, newData
+
+def newbins(wavelengths, data, bins, zero=False):
+    """
+    Rebin data according to a user-defined binning scheme.
+    :param wavelengths: arraylike
+        The wavelengths of the native data. Units should be in nm.
+    :param data: arraylike
+        The native data to be rebinned. Assumes each row is an observation and each column is a bin.
+    :param bins: dict
+        A dictionary containing the left-ward wavelength bin limits (first key) and the right-ward wavelength bin limits
+        (right key). Units should be in Angstroms.
+    :param zero: bool
+        Controls whether a wavelength bin is 'zeroed' out after it is considered. Default is False.
+    :return newWaves: arraylike
+        The wavelength boundaries of the new binning scheme.
+    :return newData: arraylike
+        The values of the rebinned data.
+    """
+    nativeBinWidth = np.round(np.nanmean(np.diff(wavelengths)), 2)
+    lowBins = bins['short']
+    highBins = bins['long']
+    newData = np.zeros((data.shape[0], len(lowBins)))
+    newWaves = 0.5*(lowBins + highBins)
+    # Loop through the desired wavelengths:
+    for i in range(len(lowBins)):
+        # Wavelength ranges:
+        if lowBins[i] != highBins[i]:
+            # Isolate the wavelength bands to sum together:
+            validInds = np.where((wavelengths >= lowBins[i]/10.) & (wavelengths < highBins[i]/10.))[0]
+            # Sum the values in the bins:
+            newData[:, i] = np.sum(data[:, validInds] * nativeBinWidth, axis=-1)
+
+        # Wavelength 'lines':
+        else:
+            # Find the nearest index to the line itself:
+            idx, val = find_nearest(wavelengths, lowBins[i]/10.)
+            # Simply assign the the values at that index to the new bin values:
+            newData[:, i] = data[:, idx] * nativeBinWidth
+            # Performing zeroing, if desired:
+            if zero == True:
+                data[:, idx] = np.zeros_like(data[:, idx])
 
     return newWaves, newData
 
