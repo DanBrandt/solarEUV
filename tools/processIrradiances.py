@@ -189,15 +189,16 @@ def obtainFism2(myFism2File, bands=False):
     wavelengths = np.asarray(fism2Data.variables['wavelength'])
     if bands==True: # STANDARD BANDS
         flux = np.asarray(fism2Data.variables['ssi']) # photons/cm2/second
-        pFlux = flux / 1.0e-4
+        bandwidths = np.asarray(fism2Data.variables['band_width'])
+        pFlux = flux * 1.0e4 # photons/m2/second
         # Convert fluxes to irradiances:
         irr = np.zeros_like(flux)
         for i in range(flux.shape[1]):
-            irr[:, i] = spectralAnalysis.spectralIrradiance(pFlux[:, i], wavelengths[i]*10.)
+            irr[:, i] = spectralAnalysis.spectralIrradiance(pFlux[:, i], wavelengths[i]*10.) # W/m^2
         irradiance = [flux, irr]
         uncertainties = np.asarray(fism2Data.variables['band_width']) # TODO: Replace with an estimation of uncertainty
     else: # NATIVE DATA
-        irradiance = np.asarray(fism2Data.variables['irradiance'])
+        irradiance = np.asarray(fism2Data.variables['irradiance']) # W/m^2/nm
         uncertainties = np.asarray(fism2Data.variables['uncertainty'])
     dates = fism2Data.variables['date']
     datetimes = []

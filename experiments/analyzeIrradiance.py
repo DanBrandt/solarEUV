@@ -64,15 +64,11 @@ if __name__=="__main__":
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebin the data (old method):
-    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
-                                                                    zero=False)
-    # Rebin the data (new method, no zeroing):
+    # myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.rebin(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
+    #                                                                 zero=False)
+    # Rebin the data (new method):
     myIrrDataWavelengthsFISM2_n, rebinnedIrrDataFISM2_n = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59,
-                                                                    zero=False)
-    # Rebin the data (new method, with zeroing):
-    # myIrrDataWavelengthsFISM2_z, rebinnedIrrDataFISM2_z = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2,
-    #                                                                       euv_data_59,
-    #                                                                       zero=True)
+                                                                    zero=True)
 
     fism2Irr = rebinnedIrrDataFISM2_n[:, 7:44] # rebinnedIrrDataFISM2[:, 7:44]
     # Harmonize the times for NEUVAC and FISM2:
@@ -97,7 +93,7 @@ if __name__=="__main__":
 
     # ==================================================================================================================
     # 2: Run the empirical models:
-    override = False # If True, recompute everything
+    override = True # If True, recompute everything
     if os.path.isfile(results_dir+'cachedData.pkl') == True and override == False:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
@@ -142,8 +138,18 @@ if __name__=="__main__":
         #                                                                                                 iterations=50,
         #                                                                                                 model='EUVAC')
         euvacFlux, euvacIrr, perturbedEuvacIrr, savedPertsEuvac, cc2Euvac = euvac.euvac(F107, F107A,
-                                                                                        statsFiles=['corMatEUVAC.pkl',
-                                                                                                    'sigma_EUVAC.pkl'])
+                                                                                        statsFiles=None) #['corMatEUVAC.pkl',
+                                                                                                    #'sigma_EUVAC.pkl'])
+
+        # singulars = euvac.euvacTable[:, 1][np.where( (euvac.euvacTable[:, 2] - euvac.euvacTable[:, 1]) == 0 )[0]]
+        # plt.figure();
+        # # plt.plot(wavelengthsFISM2 * 10, myIrrDataAllFISM2[0, :], label='FISM2 Raw')
+        # plt.plot(0.5*(euvac.euvacTable[:, 1]+euvac.euvacTable[:, 2]), euvacIrr[0, :], label='EUVAC', marker='o')
+        # plt.plot(myIrrDataWavelengthsFISM2_n[7:44], correspondingFism2Irr[0, :], label='FISM2', marker='o')
+        # # plt.plot(myIrrDataWavelengthsFISM2_n[7:44], heuvacIrr[0, :], label='HEUVAC')
+        # # for band in singulars:
+        # #     plt.axvline(x=band, color='k')
+        # plt.legend(loc='best')
 
         # Generate HEUVAC data:
         # ensemble_HeuvacIrr, ensemble_average_HeuvacIrr, ensemble_stddev_HeuvacIrr = irradiance_ensemble(F107,
@@ -152,9 +158,9 @@ if __name__=="__main__":
         #                                                                                              model='HEUVAC')
         heuvac_wav, heuvacFlux, heuvacIrr, perturbedEuvIrradiance, savedPertsHeuvac, cc2Heuvac = heuvac.heuvac(F107, F107A,
                                                                                                                torr=True,
-                                                                                                               statsFiles=[
-                                                                                                                   'corMatHEUVAC.pkl',
-                                                                                                                   'sigma_HEUVAC.pkl'])
+                                                                                                               statsFiles=None) #[
+                                                                                                                   #'corMatHEUVAC.pkl',
+                                                                                                                   #'sigma_HEUVAC.pkl'])
 
         # Generate SOLOMON data and rebin everything into the SOLOMON bins:
         ensemble_NeuvacIrrSolomon, ensemble_average_NeuvacIrrSolomon, ensemble_stddev_NeuvacIrrSolomon = irradiance_ensemble(F107, F107A,
@@ -166,6 +172,17 @@ if __name__=="__main__":
                                                                                                   'sigma_NEUVAC_StanBands.pkl'])
         solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
         solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
+
+        #
+        solomonWavs, solomonIrrFISM2_test = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable,
+                        zero=False)
+        # plt.figure();
+        # plt.plot(wavelengthsFISM2Bands, correspondingIrrFISM2StanBands[0, :], 'b-', label='FISM2-S')
+        # plt.plot(wavelengthsFISM2Bands, correspondingIrrFISM2StanBands[-1, :], 'b--', label='FISM2-S (2)')
+        # # plt.plot(wavelengthsFISM2Bands[:-1], solomonIrrFISM2_test[0, :], label='FISM2-S-Test')
+        # plt.plot(wavelengthsFISM2Bands[:-1], solomonIrrEUVAC[0, :], 'g-', label='EUVAC-S')
+        # plt.plot(wavelengthsFISM2Bands[:-1], solomonIrrEUVAC[-1, :], 'g--', label='EUVAC-S (2)')
+        # plt.legend(loc='best')
 
         # for l in range(heuvacIrr.shape[1]):
         #     l = 19

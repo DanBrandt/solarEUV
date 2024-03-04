@@ -43,7 +43,7 @@ solomonBands = {
     'long': solomonTable[:, 2]
 }
 solomonBandWidths = np.array([3.5, 0.4, 1., 1.4, 3.8, 8.5, 6.9, 6.6, 3., 22., 11., 14.8, 14.8, 11.5, 11.5, 11.5, 6.2,
-                              6.2, 6.2, 1.2,  4., 2.3 , 16.], dtype=np.float32)*10.
+                              6.2, 6.2, 1.2,  4., 2.3 , 16.], dtype=np.float32)/10.
 # The tables above are in units of Angstroms - source is Table A1 from Solomon and Qian 2005.
 #-----------------------------------------------------------------------------------------------------------------------
 

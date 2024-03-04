@@ -21,6 +21,7 @@ from scipy import interpolate
 from urllib.request import urlretrieve
 from math import log10, floor
 from scipy import stats
+from scipy.signal import find_peaks
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -857,29 +858,51 @@ def newbins(wavelengths, data, bins, zero=False):
     :return newData: arraylike
         The values of the rebinned data.
     """
+    # originalData = data
     nativeBinWidth = np.round(np.nanmean(np.diff(wavelengths)), 2)
     lowBins = bins['short']
     highBins = bins['long']
     newData = np.zeros((data.shape[0], len(lowBins)))
     newWaves = 0.5*(lowBins + highBins)
+    # Relevant line indices in FISM2:
+    fismLines = np.array([257, 283, 303, 304, 367, 464, 553, 583, 610, 630, 702, 764, 769, 787, 976, 1026, 1032, 1216])
+
     # Loop through the desired wavelengths:
+    halfWindow = 2
+    singulars = []
+    j = 0
     for i in range(len(lowBins)):
-        # Wavelength ranges:
+        # Go through the singular wavelengths first.
+        if lowBins[i] == highBins[i]:
+            # idx, val = find_nearest(wavelengths, lowBins[i] / 10.)
+
+            # Simply assign the the values at that index to the new bin values:
+            # newData[:, i] = data[:, fismLines[j]] * nativeBinWidth
+
+            # Sum the data in a 5-nm window centered on the line:
+            newData[:, i] = np.sum(data[:, fismLines[j]-halfWindow:fismLines[j]+halfWindow] * nativeBinWidth, axis=-1 )
+
+            singulars.append(lowBins[i])
+
+            # Performing zeroing, if desired:
+            if zero == True:
+                # data[:, fismLines[j]] = np.zeros_like(data[:, fismLines[j]])
+                data[:, fismLines[j] - halfWindow:fismLines[j] + halfWindow] = np.zeros_like(data[:, fismLines[j]-halfWindow:fismLines[j]+halfWindow])
+            j += 1
+
+    # plt.figure(); plt.plot(wavelengths*10, originalData[0, :], 'bo-'); plt.plot(wavelengths*10, data[0, :], 'ro-')
+    # for j in range(len(singulars)):
+    #     plt.axvline(x=singulars[j], color='k')
+    # plt.plot(newWaves, newData[0, :], 'go-')
+
+    for i in range(len(lowBins)):
+        # Go through the wavelength ranges:
         if lowBins[i] != highBins[i]:
+            # binWidth = (highBins[i] - lowBins[i])/10.
             # Isolate the wavelength bands to sum together:
             validInds = np.where((wavelengths >= lowBins[i]/10.) & (wavelengths < highBins[i]/10.))[0]
             # Sum the values in the bins:
             newData[:, i] = np.sum(data[:, validInds] * nativeBinWidth, axis=-1)
-
-        # Wavelength 'lines':
-        else:
-            # Find the nearest index to the line itself:
-            idx, val = find_nearest(wavelengths, lowBins[i]/10.)
-            # Simply assign the the values at that index to the new bin values:
-            newData[:, i] = data[:, idx] * nativeBinWidth
-            # Performing zeroing, if desired:
-            if zero == True:
-                data[:, idx] = np.zeros_like(data[:, idx])
 
     return newWaves, newData
 

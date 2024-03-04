@@ -72,7 +72,8 @@ if __name__=="__main__":
     fism2file = '../empiricalModels/irradiances/FISM2/daily_data_1947-2023.nc'
     myIrrTimesFISM2, wavelengthsFISM2, myIrrDataAllFISM2, myIrrUncAllFISM2 = obtainFism2(fism2file)
     # Rebin the data:
-    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59, zero=False) # toolbox.rebin
+    myIrrDataWavelengthsFISM2, rebinnedIrrDataFISM2 = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, euv_data_59, zero=True)
+
     # Replace bad values with NaNs:
     myIrrDataAllFISM2Fixed = rebinnedIrrDataFISM2.copy()
     myIrrDataAllFISM2Fixed[myIrrDataAllFISM2Fixed <= 0 ] = np.nan
