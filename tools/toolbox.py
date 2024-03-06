@@ -21,7 +21,7 @@ from scipy import interpolate
 from urllib.request import urlretrieve
 from math import log10, floor
 from scipy import stats
-from scipy.signal import find_peaks
+import seaborn as sns
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -1099,9 +1099,9 @@ def mape(x, y):
     mape = (1./n) * np.sum(quantity)
     return mape
 
-def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None):
+def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None, density=True):
     """
-    Given data and bins, plot a histogram.
+    Given data and bins, plot a histogram and fit a distribution to it.
     :param data: arraylike
         1D data to make a histogram with.
     :param bins: arraylike
@@ -1114,16 +1114,23 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None):
         A 3-element list containing string for the xlabel, ylabel, and the title.
     :param logScale: bool
         If 'x', scales the x axis on a log scale. If 'y', scales the y axis on a log scale. If 'both', scales both.
+    :param density: bool
+        If True, computes the density curve of the histogram. If False, simply fits a skew normal distribution to the
+        data.
     """
-    fig = plt.figure()
-    plt.hist(data, bins=bins, density=True, color=color, label='Data')
     validLocs = ~np.isnan(data)
     xVals = np.linspace(bins[0], bins[-1], 500)
     cleanData = data[validLocs]
     prunedData = cleanData[np.where((cleanData >= bins[0]) & (cleanData <= bins[-1]))[0]]
-    a, loc, scale = stats.skewnorm.fit(prunedData)
-    p = stats.skewnorm.pdf(xVals, a, loc, scale)
-    plt.plot(xVals, p, 'k', linewidth=2, label=r'Fit: $\alpha$='+str(np.round(a, 2))+r', $\xi$='+str(np.round(loc, 2))+r', $\omega$='+str(np.round(scale, 2)))
+    if density == False:
+        fig = plt.figure()
+        plt.hist(data, bins=bins, density=True, color=color, label='Data')
+        a, loc, scale = stats.skewnorm.fit(prunedData)
+        p = stats.skewnorm.pdf(xVals, a, loc, scale)
+        plt.plot(xVals, p, 'k', linewidth=2, label=r'Fit: $\alpha$='+str(np.round(a, 2))+r', $\xi$='+str(np.round(loc, 2))+r', $\omega$='+str(np.round(scale, 2)))
+    else:
+        fig = plt.figure()
+        sns.histplot(prunedData, kde=True, bins=bins, color=color).lines[0].set_color('black')
     plt.xlabel(labels[0])
     plt.ylabel(labels[1])
     plt.title(labels[2])
@@ -1140,8 +1147,9 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None):
     else:
         pass
     plt.axvline(x=0, color='gray', linestyle='--', alpha=0.8)
-    print('Skewnormal Parameters: Alpha=' + str(a) + ', Loc=' + str(loc) + ', Scale=' + str(scale)+', Kurtosis='+
-          str(stats.kurtosis(data[validLocs]))+', Skew='+str(stats.skew(data[validLocs])))
+    if density == False:
+        print('Skewnormal Parameters: Alpha=' + str(a) + ', Loc=' + str(loc) + ', Scale=' + str(scale)+', Kurtosis='+
+              str(stats.kurtosis(data[validLocs]))+', Skew='+str(stats.skew(data[validLocs])))
     if saveLoc:
         plt.savefig(saveLoc, dpi=300)
         print('Saved figure to '+saveLoc)

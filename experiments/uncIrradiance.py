@@ -49,26 +49,26 @@ if __name__=="__main__":
     omniF107AveData = '../solarIndices/F107/OMNIWeb/OMNIF107averageVals.pkl'
     omniTimes = toolbox.loadPickle(omniTimesData)
     omniF107 = toolbox.loadPickle(omniF107Data)
-    omniF107A = toolbox.loadPickle(omniF107AveData)
+    omniF107B = toolbox.loadPickle(omniF107AveData)
     # F10.7 data extends between 1963-11-28; 12:00 to 2023-09-27; 12:00.
     times = omniTimes
     F107 = omniF107
-    F107A = omniF107A
+    F107B = omniF107B
     # Compute F10.7 uncertainties.
     rollingStdF107 = toolbox.rollingStd(F107, 2)
-    rollingStdF107A = toolbox.rollingStd(F107A, 81)
+    rollingStdF107B = toolbox.rollingStd(F107B, 54)
     # View the results:
     plt.figure()
     plt.fill_between(np.linspace(0, len(F107) - 1, len(F107)), np.subtract(F107, rollingStdF107),
                      np.add(F107, rollingStdF107), color='cyan', linestyle='-')
     plt.plot(np.linspace(0, len(F107) - 1, len(F107)), F107, 'b-')
     plt.figure()
-    plt.fill_between(np.linspace(0, len(F107A) - 1, len(F107A)), np.subtract(F107A, rollingStdF107A),
-                     np.add(F107A, rollingStdF107A), color='limegreen', linestyle='-')
-    plt.plot(np.linspace(0, len(F107A) - 1, len(F107A)), F107A, 'g-')
+    plt.fill_between(np.linspace(0, len(F107B) - 1, len(F107B)), np.subtract(F107B, rollingStdF107B),
+                     np.add(F107B, rollingStdF107B), color='limegreen', linestyle='-')
+    plt.plot(np.linspace(0, len(F107B) - 1, len(F107B)), F107B, 'g-')
 
     # Generate NEUVAC data:
-    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands=None, tableFile=neuvac_tableFile) # perturbedNeuvacIrr, savedPerts, cc2
+    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands=None, tableFile=neuvac_tableFile) # perturbedNeuvacIrr, savedPerts, cc2
 
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
@@ -94,7 +94,7 @@ if __name__=="__main__":
     trainTimesOMNI = times[trainIndsOMNI]
     trainTimesFISM2 = myIrrTimesFISM2[trainIndsFISM2]
     trainF107 = F107[trainIndsOMNI]
-    trainF107A = F107A[trainIndsOMNI]
+    trainF107B = F107B[trainIndsOMNI]
     trainNEUVAC = neuvacIrr[trainIndsOMNI, :]
     trainFISM2 = myIrrDataAllFISM2Fixed[trainIndsFISM2, :]
     trainUncFISM2 = rebinnedIrrUncFISM2[trainIndsFISM2, :]
@@ -105,7 +105,7 @@ if __name__=="__main__":
     testTimesOMNI = times[testIndsOMNI]
     testTimesFISM2 = myIrrTimesFISM2[testIndsFISM2]
     testF107 = F107[testIndsOMNI]
-    testF107A = F107A[testIndsOMNI]
+    testF107B = F107B[testIndsOMNI]
     testNEUVAC = neuvacIrr[testIndsOMNI, :]
     testFISM2 = myIrrDataAllFISM2Fixed[testIndsFISM2, :]
     testUncFISM2 = rebinnedIrrUncFISM2[testIndsFISM2, :]
@@ -146,10 +146,10 @@ if __name__=="__main__":
     # fig.colorbar(pos, ax=axs[0])
     # fig.colorbar(pos2, ax=axs[1])
     fig = plt.figure()
-    pos = plt.imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
+    pos = plt.imshow(corMat, aspect='auto', cmap='bwr', vmin=0.995, vmax=1.0, interpolation='none')
     plt.xlabel('Wavelength Band')
     plt.ylabel('Wavelength Band')
-    plt.title('Correlation Matrix (NEUVAC - FISM2)')
+    plt.title('Covariance Matrix (NEUVAC-59 - FISM2)')
     fig.colorbar(pos)
     plt.savefig('Uncertainty/corMat.png', dpi=300)
 
@@ -195,7 +195,7 @@ if __name__=="__main__":
     # 5: Do all of the above, but for the SOLOMON version of NEUVAC:
 
     # Generate NEUVAC data:
-    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon)
+    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon)
 
     # Load in FISM2 STAN BAND data:
     # FISM2 Stan Band Results:
@@ -230,14 +230,14 @@ if __name__=="__main__":
     pos = plt.imshow(corMatStanBands, aspect='auto', cmap='bwr', interpolation='none')
     plt.xlabel('Wavelength Band')
     plt.ylabel('Wavelength Band')
-    plt.title('Correlation Matrix (NEUVAC-S - FISM2-S)')
+    plt.title('Covariance Matrix (NEUVAC-22 - FISM2)')
     fig.colorbar(pos)
     plt.savefig('Uncertainty/corMatStanBands.png', dpi=300)
 
     # ------------------------------------------------------------------------------------------------------------------
     # 6: Compute the normalized cross-correlation matrices and normalized standard deviations for ALL OTHER MODELS
     # 6a: EUVAC
-    euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A)
+    euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107B)
 
     residualsArrayEUVAC = np.subtract(euvacIrr, correspondingIrrFISM2[:, 7:44])
     toolbox.savePickle(residualsArrayEUVAC, 'residualsArrayEUVAC.pkl')
@@ -257,7 +257,7 @@ if __name__=="__main__":
     plt.savefig('Uncertainty/corMatsEUVAC.png', dpi=300)
 
     # 6b: HEUVAC
-    heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl',
+    heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107B, torr=True, statsFiles=['corMatHEUVAC.pkl',
                                                                                            'sigma_HEUVAC.pkl'])
     residualsArrayHEUVAC = np.subtract(heuvacIrr, correspondingIrrFISM2[:, 7:44])
     toolbox.savePickle(residualsArrayHEUVAC, 'residualsArrayHEUVAC.pkl')
