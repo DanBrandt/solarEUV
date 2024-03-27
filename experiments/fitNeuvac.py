@@ -64,7 +64,7 @@ if __name__=="__main__":
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
 
-    refit = [True, True] # Control whether not refitting is done for the GITM bins and the Solomon bins, respectively.
+    refit = [False, True] # Control whether not refitting is done for the GITM bins and the Solomon bins, respectively.
     # ==================================================================================================================
     # GITM BINS
     # ==================================================================================================================
@@ -133,11 +133,11 @@ if __name__=="__main__":
     myIrrDataAllFISM2BandsFixed[myIrrDataAllFISM2BandsFixed <= 0] = np.nan
 
     # Rebin the high-resolution daily FISM2 data into the Solomon bins, as a sanity check:
-    matchInds = np.where((myIrrTimesFISM2Bands >= myIrrTimesFISM2[0]) & (myIrrTimesFISM2Bands <= myIrrTimesFISM2[-1]))[0]
-    matchedFISM2IrrSolomon = myIrrDataAllFISM2BandsFixed[matchInds, :]
-    myWavelengthsFISM2Bands, rebinnedIrrDataFISM2Bands = toolbox.solomonAnalysis(matchedFISM2IrrSolomon, solomonTable,
-                                                                                 myIrrDataAllFISM2,
-                                                                                 wavelengthsFISM2)  # .newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable, zero=True)
+    # matchInds = np.where((myIrrTimesFISM2Bands >= myIrrTimesFISM2[0]) & (myIrrTimesFISM2Bands <= myIrrTimesFISM2[-1]))[0]
+    # matchedFISM2IrrSolomon = myIrrDataAllFISM2BandsFixed[matchInds, :]
+    # myWavelengthsFISM2Bands, rebinnedIrrDataFISM2Bands = toolbox.solomonAnalysis(matchedFISM2IrrSolomon, solomonTable,
+    #                                                                              myIrrDataAllFISM2,
+    #                                                                              wavelengthsFISM2)  # .newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable, zero=True)
 
     if refit[1] == True:
         # Perform a non-linear fit between F10.7, F10.7B, and FISM2:

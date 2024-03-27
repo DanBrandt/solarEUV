@@ -53,6 +53,7 @@ if __name__=="__main__":
     # F10.7 data extends between 1963-11-28; 12:00 to 2023-09-27; 12:00.
     times = omniTimes
     F107 = omniF107
+    F107A = toolbox.rollingAverage(omniF107, 81, True, True)
     F107B = omniF107B
     # Compute F10.7 uncertainties.
     rollingStdF107 = toolbox.rollingStd(F107, 2)
@@ -195,7 +196,7 @@ if __name__=="__main__":
     # 5: Do all of the above, but for the SOLOMON version of NEUVAC:
 
     # Generate NEUVAC data:
-    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon)
+    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon)
 
     # Load in FISM2 STAN BAND data:
     # FISM2 Stan Band Results:
@@ -237,7 +238,7 @@ if __name__=="__main__":
     # ------------------------------------------------------------------------------------------------------------------
     # 6: Compute the normalized cross-correlation matrices and normalized standard deviations for ALL OTHER MODELS
     # 6a: EUVAC
-    euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107B)
+    euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A)
 
     residualsArrayEUVAC = np.subtract(euvacIrr, correspondingIrrFISM2[:, 7:44])
     toolbox.savePickle(residualsArrayEUVAC, 'residualsArrayEUVAC.pkl')
@@ -257,7 +258,7 @@ if __name__=="__main__":
     plt.savefig('Uncertainty/corMatsEUVAC.png', dpi=300)
 
     # 6b: HEUVAC
-    # heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107B, torr=True, statsFiles=['corMatHEUVAC.pkl',
+    # heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl',
     #                                                                                        'sigma_HEUVAC.pkl'])
     # residualsArrayHEUVAC = np.subtract(heuvacIrr, correspondingIrrFISM2[:, 7:44])
     # toolbox.savePickle(residualsArrayHEUVAC, 'residualsArrayHEUVAC.pkl')

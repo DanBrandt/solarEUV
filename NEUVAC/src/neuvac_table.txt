@@ -1,6 +1,6 @@
 This file contains coefficients for the current iteration of NEUVAC.
 NOTE THAT THIS FILE CONTAINS COEFFICIENTS FOR THE GITM BINS.
-This file was created on 2024-03-13T13:22:52
+This file was created on 2024-03-27T11:46:08
 File Authors: Brandt, Daniel A. and Ridley, Aaron J.
 This version of NEUVAC was created by fitting nonlinear models between F10.7 and preceding
 54-day averaged F10.7 and FISM2 decomposed into 59 wavelength bands conventionally used in

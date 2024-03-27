@@ -235,7 +235,7 @@ if __name__=="__main__":
 
         solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
         solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
-        
+
         # solomonWavs, solomonIrrFISM2_test = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable,
         #                 zero=False)
         # plt.figure();
@@ -628,7 +628,7 @@ if __name__=="__main__":
     HEUVAC_resids_425 = HEUVAC_resids[:, 12]
     HEUVAC_resids_725 = HEUVAC_resids[:, 24]
     HEUVAC_resids_975 = HEUVAC_resids[:, 31]
-    fig, axs = plt.subplots(nrows=1, ncols=3)
+    fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True)
     axs[0].scatter(F107[sortF107], NEUVAC_resids_425[sortF107], color='orange', label='NEUVAC-37 (n='+str(iterations)+')')
     axs[0].scatter(F107[sortF107], EUVAC_resids_425[sortF107], color='green', label='EUVAC')
     axs[0].scatter(F107[sortF107], HEUVAC_resids_425[sortF107], color='red', label='HEUVAC-37')
@@ -1007,7 +1007,7 @@ if __name__=="__main__":
     HFG_resids_430_Solomon = HFG_resids_Solomon[:, 9]
     HFG_resids_724_Solomon = HFG_resids_Solomon[:, 1]
     HFG_resids_981_Solomon = HFG_resids_Solomon[:, 19]
-    fig, axs = plt.subplots(nrows=1, ncols=3)
+    fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True)
     axs[0].scatter(F107[sortF107], NEUVAC_resids_430_Solomon[sortF107], color='orange',
                    label='NEUVAC-S (n=' + str(iterations) + ')')
     axs[0].scatter(F107[sortF107], EUVAC_resids_430_Solomon[sortF107], color='green', label='EUVAC-22')
@@ -1019,7 +1019,7 @@ if __name__=="__main__":
     axs[1].scatter(F107[sortF107], NEUVAC_resids_724_Solomon[sortF107], color='orange', label='NEUVAC-22 (n='+str(iterations)+')')
     axs[1].scatter(F107[sortF107], EUVAC_resids_724_Solomon[sortF107], color='green', label='EUVAC-22')
     axs[1].scatter(F107[sortF107], HFG_resids_724_Solomon[sortF107], color='purple', label='HFG')
-    axs[1].set_ylim([-150, 300])
+    axs[1].set_ylim([-150, 150])
     axs[1].set_xlabel('F107 (sfu)')
     axs[1].set_title('725 $\mathrm{\AA}$')
     axs[1].legend(loc='best')
@@ -1051,25 +1051,25 @@ if __name__=="__main__":
 
     fig, axs = plt.subplots(nrows=3, ncols=1)
     #
-    axs[0].plot(lowSolarTimesLonger, fism2IntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='FISM2-S')
-    axs[0].plot(lowSolarTimesLonger, neuvacIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='NEUVAC-S (n=' + str(iterations) + ')')
-    axs[0].plot(lowSolarTimesLonger, euvacIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='EUVAC-S')
+    axs[0].plot(lowSolarTimesLonger, fism2IntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='FISM2')
+    axs[0].plot(lowSolarTimesLonger, neuvacIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='NEUVAC-22 (n=' + str(iterations) + ')')
+    axs[0].plot(lowSolarTimesLonger, euvacIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='EUVAC-22')
     axs[0].plot(lowSolarTimesLonger, hfgIntegEnergySolomon[lowSolarTimeIndsLonger] / (1e9), label='HFG', color='purple')
     axs[0].set_ylabel('Integrated Energy (GW)')
     axs[0].legend(loc='best')
     axs[0].set_title('Low Solar Activity: '+str(lowSolarTimeBoundsLonger[0])[:-9]+' to '+str(lowSolarTimeBoundsLonger[-1])[:-9])
     #
-    axs[1].plot(highSolarTimesLonger, fism2IntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='FISM2-S')
-    axs[1].plot(highSolarTimesLonger, neuvacIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='NEUVAC-S (n=' + str(iterations) + ')')
-    axs[1].plot(highSolarTimesLonger, euvacIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='EUVAC-S')
+    axs[1].plot(highSolarTimesLonger, fism2IntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='FISM2')
+    axs[1].plot(highSolarTimesLonger, neuvacIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='NEUVAC-22 (n=' + str(iterations) + ')')
+    axs[1].plot(highSolarTimesLonger, euvacIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='EUVAC-22')
     axs[1].plot(highSolarTimesLonger, hfgIntegEnergySolomon[highSolarTimeIndsLonger] / (1e9), label='HFG', color='purple')
     axs[1].set_ylabel('Integrated Energy (GW)')
     axs[1].legend(loc='best')
     axs[1].set_title('High Solar Activity: '+str(highSolarTimeBoundsLonger[0])[:-9]+' to '+str(highSolarTimeBoundsLonger[-1])[:-9])
     #
-    axs[2].plot(times, fism2IntegEnergySolomon / (1e9), label='FISM2-S')
-    axs[2].plot(times, neuvacIntegEnergySolomon / (1e9), label='NEUVAC-S (n='+str(iterations)+')')
-    axs[2].plot(times, euvacIntegEnergySolomon / (1e9), label='EUVAC-S')
+    axs[2].plot(times, fism2IntegEnergySolomon / (1e9), label='FISM2')
+    axs[2].plot(times, neuvacIntegEnergySolomon / (1e9), label='NEUVAC-22 (n='+str(iterations)+')')
+    axs[2].plot(times, euvacIntegEnergySolomon / (1e9), label='EUVAC-22')
     axs[2].plot(times, hfgIntegEnergySolomon / (1e9), label='HFG', color='purple')
     axs[2].set_xlabel('Time')
     axs[2].set_ylabel('Integrated Energy (GW)')
