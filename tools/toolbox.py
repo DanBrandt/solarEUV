@@ -22,6 +22,7 @@ from urllib.request import urlretrieve
 from math import log10, floor
 from scipy import stats
 import seaborn as sns
+import scipy.optimize as opt
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -841,7 +842,7 @@ def rebin(wavelengths, data, resolution, limits=None, factor=None, zero=True, un
 
     return newWaves, newData
 
-def newbins(wavelengths, data, bins, zero=False):
+def newbins(wavelengths, data, bins, zero=False, interpolation=False):
     """
     Rebin data according to a user-defined binning scheme.
     :param wavelengths: arraylike
@@ -853,6 +854,9 @@ def newbins(wavelengths, data, bins, zero=False):
         (right key). Units should be in Angstroms.
     :param zero: bool
         Controls whether a wavelength bin is 'zeroed' out after it is considered. Default is False.
+    :param interpolation: bool
+        Controls whether or not interpolation or 4-nm centered windowed averaging is used to handle singular emission
+        lines. Default is False, corresponding to the windowed averaging.
     :return newWaves: arraylike
         The wavelength boundaries of the new binning scheme.
     :return newData: arraylike
@@ -865,13 +869,13 @@ def newbins(wavelengths, data, bins, zero=False):
     newData = np.zeros((data.shape[0], len(lowBins)))
     newWaves = 0.5*(lowBins + highBins)
     # Relevant line indices in FISM2:
-    fismLines = np.array([257, 283, 303, 304, 367, 464, 553, 583, 610, 630, 702, 764, 769, 787, 976, 1026, 1032, 1216])
+    fismLines = np.array([256, 284, 303, 304, 368, 465, 554, 584, 609, 629, 703, 765, 770, 787, 976, 1025, 1031, 1215])
 
     # Loop through the desired wavelengths:
     halfWindow = 2
     singulars = []
     j = 0
-    for i in range(len(lowBins)):
+    for i in range(len(lowBins)): # 32
         # Go through the singular wavelengths first.
         if lowBins[i] == highBins[i]:
             # idx, val = find_nearest(wavelengths, lowBins[i] / 10.)
@@ -879,15 +883,43 @@ def newbins(wavelengths, data, bins, zero=False):
             # Simply assign the the values at that index to the new bin values:
             # newData[:, i] = data[:, fismLines[j]] * nativeBinWidth
 
-            # Sum the data in a 5-nm window centered on the line:
-            newData[:, i] = np.sum(data[:, fismLines[j]-halfWindow:fismLines[j]+halfWindow] * nativeBinWidth, axis=-1 )
+            if interpolation == False:
+                # Sum the data in a 0.4-nm window centered on the line:
+                newData[:, i] = np.sum(data[:, fismLines[j]-halfWindow:fismLines[j]+halfWindow] * nativeBinWidth, axis=-1 )
+            else:
+                # Aaronic method:
+                # 1: Linearly-interpolate between the adjacent bins to approximate the background value
+                interpolatedValues = np.zeros_like(data[:, 0])
+                x = [wavelengths[fismLines[j]-1], wavelengths[fismLines[j]+1]]
+                for k in range(data[:, fismLines[j]].shape[0]):
+                    y = [data[k, fismLines[j]-1], data[k, fismLines[j]+1]]
+                    interpVal = np.interp(wavelengths[fismLines[j]], x, y)
+                    interpolatedValues[k] = interpVal
+
+                # 2: Take the difference between the native FISM2 bin value and interpolated value
+                difference = data[:, fismLines[j]] - interpolatedValues
+
+                # 3: Assign the difference as the line irradiance (increase in brightness above background)
+                newData[:, i] = difference * nativeBinWidth
+
+                # 4: Sanity check - view the results:
+                idx = k
+                plt.figure()
+                plt.plot(wavelengths, data[idx, :])
+                plt.axvline(x=wavelengths[fismLines[j]], color='k')
+                plt.scatter(x=wavelengths[fismLines[j]], y=data[idx, fismLines[j]], color='b')
+                plt.scatter(x=wavelengths[fismLines[j]], y=interpolatedValues[idx], color='r')
+                plt.scatter(x=wavelengths[fismLines[j]], y=difference[idx], color='m')
 
             singulars.append(lowBins[i])
 
             # Performing zeroing, if desired:
             if zero == True:
                 # data[:, fismLines[j]] = np.zeros_like(data[:, fismLines[j]])
-                data[:, fismLines[j] - halfWindow:fismLines[j] + halfWindow] = np.zeros_like(data[:, fismLines[j]-halfWindow:fismLines[j]+halfWindow])
+                if interpolation == False:
+                    data[:, fismLines[j] - halfWindow:fismLines[j] + halfWindow] = np.zeros_like(data[:, fismLines[j]-halfWindow:fismLines[j]+halfWindow])
+                else:
+                    data[:, fismLines[j]-1:fismLines[j] + 1] = np.zeros_like(data[:, fismLines[j]-1:fismLines[j] + 1])
             j += 1
 
     # plt.figure(); plt.plot(wavelengths*10, originalData[0, :], 'bo-'); plt.plot(wavelengths*10, data[0, :], 'ro-')
@@ -1164,4 +1196,81 @@ def percDev(x, y):
         The true value(s).
     """
     return np.divide(np.subtract(x, y), y) * 100
+
+def solomonAnalysis(fismStanBands, fismWavesSolomon, fismDaily, fismWavesDaily):
+    """
+    Given FISM2 data in the standard bands and in the high-resolution wavelength scheme for the daily values, figure
+    out what coefficients are needed to rebin the daily values into the standard bands.
+    :param fismStanBands: ndarray
+        A 2D array of FISM2 data in the standard bands from Solomon and Qian. Each row is an observation and each column
+        a wavelength bin.
+    :param fismWavesSolomon: dict
+        The wavelength boundaries for the Solomon binning scheme. fismWavesSolomon['short'] contains the left-sided
+        bin boundaries, and fismWavesSolomon['long'] contains the right-sided bin boundaries. Units in Angstroms.
+    :param fismDaily: ndarray
+        A 2D array of FISM2 data in the high-resolution wavelength scheme for the daily spectra. Each row is an
+        observation and each column a wavelength bin.
+    :param fismWavesDaily: ndarray
+        The wavelengths at which every FISM2 daily value is reported. Units in nm.
+    """
+    nativeBinWidth = np.round(np.nanmean(np.diff(fismWavesDaily)), 2)
+    manualFismStanBands = np.zeros_like(fismStanBands)
+    fismStanBandsShort = fismWavesSolomon['short'] / 10.
+    fismStanBandsLong = fismWavesSolomon['long'] / 10.
+
+    # Define an optimization function:
+    def f(x):
+        y = np.dot(A, x) - b
+        return np.dot(y, y)
+
+    # Loop through the solomon bins:
+    for i in range(len(fismWavesSolomon['short'])):
+        # For the case where the bins ARE NOT overlapping:
+        validInds = np.where((fismWavesDaily >= fismStanBandsShort[i]) & (fismWavesDaily < fismStanBandsLong[i]))[0]
+        # Sum the values in the bins:
+        manualFismStanBands[:, i] = np.sum(fismDaily[:, validInds] * nativeBinWidth, axis=-1)
+
+    # Handle the overlapping bins individually:
+    overlappingSections = [[11, 13], [13, 16], [16, 19]]
+    coeffs = []
+    for pair in overlappingSections:
+        validIndsOverlapping = np.where((fismWavesDaily >= fismStanBandsShort[pair[0]]) & (fismWavesDaily <= fismStanBandsLong[pair[0]]))[0]
+        totalIrradianceInSection = np.sum(fismDaily[:, validIndsOverlapping], axis=-1)* 0.1 # W/m^2
+        referenceIrradiance = fismStanBands[:, pair[0]:pair[1]] # W/m^2
+        # Solve the linear system:
+        currentCoeffs = []
+        for j in range(len(totalIrradianceInSection)):
+            # Set up the system of equations:
+            if referenceIrradiance.shape[1] > 2:
+                A = np.array([
+                    [totalIrradianceInSection[j], 0, 0],
+                    [0, totalIrradianceInSection[j], 0],
+                    [0, 0, totalIrradianceInSection[j]],
+                    ])
+                b = np.array([
+                    referenceIrradiance[j, 0],
+                    referenceIrradiance[j, 1],
+                    referenceIrradiance[j, 2],
+                    ])
+                cons = ({'type': 'eq', 'fun': lambda x: x.sum() - 1})
+                res = opt.minimize(f, [0.2, 0.3, 0.5], method='SLSQP', constraints=cons, options={'disp': False})
+                x = res['x']
+            else:
+                A = np.array([
+                    [],
+                    [1, 1, 1]
+                ])
+                b = np.array([
+                    0,
+                    1
+                ])
+            x = np.linalg.solve(A, b)
+            currentCoeffs.append(x)
+
+
+
+
+    ellipsis
+
+
 #-----------------------------------------------------------------------------------------------------------------------

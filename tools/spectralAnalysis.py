@@ -38,8 +38,6 @@ def spectralIrradiance(photonFlux, wavelength):
         Photon flux in units of photons s^-1 m^-2. For a singular wavelength, units are photons m^-2
     :param: wavelength: float
         A specific wavelength in Angstroms.
-    :param: dWavelength: float or int
-        Wavelength bin width in Angstroms. Default is None.
     :return: irradiance: ndarray or float
         The corresponding spectral irradiance in units of W/m^2/nm.
     """

@@ -1,6 +1,6 @@
 This file contains coefficients for the current iteration of NEUVAC.
 NOTE THAT THIS FILE CONTAINS COEFFICIENTS FOR THE STAN BANDS.
-This file was created on 2024-03-04T17:07:10
+This file was created on 2024-03-11T15:41:53
 File Authors: Brandt, Daniel A. and Ridley, Aaron J.
 This version of NEUVAC was created by fitting nonlinear models between F10.7 and preceding
 54-day averaged F10.7 and FISM2 decomposed into 23 wavelength bands conventionally used in
@@ -10,9 +10,9 @@ The file is formatted as follows:
  - Second Column: Upper limit of the given wavelength bin in Angstroms.
  - Third through Eighth colummns: Coefficients for the model.
 The functional form of the model is given by:
-Irr_i(t) = A_i * (F107(t) ** B_i) + C_i * (F107A(t) ** D_i) + E_i * (F107A(t) - F107(t)) + F_i
+Irr_i(t) = A_i * (F107(t) ** B_i) + C_i * (F107B(t) ** D_i) + E_i * (F107B(t) - F107(t)) + F_i
 where the irradiance in bin i (Irr_i) is a function of time t, and A_i through F_i are 
-coefficients for bin i, and F107(t) and F107A(t) represent values of the F10.7 and 54-day
+coefficients for bin i, and F107(t) and F107B(t) represent values of the F10.7 and 54-day
 averaged F10.7 computed with a backwards-looking window, respectively.
 -----------------------------------------------------------------------------------------------
 WAVES WAVEL A_i B_i C_i D_i E_i F_i

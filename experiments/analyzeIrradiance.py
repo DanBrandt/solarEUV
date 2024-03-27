@@ -45,6 +45,18 @@ pylab.rcParams.update(params)
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
+# Helper Functions:
+def energy(watt):
+    """
+    Given the energy in watts, return the energy in joules, provided that the time given is in seconds.
+    """
+    return watt * 86400
+
+def power(myEnergy):
+    return myEnergy / 86400
+#-----------------------------------------------------------------------------------------------------------------------
+
+#-----------------------------------------------------------------------------------------------------------------------
 # Execution:
 if __name__=="__main__":
     # ==================================================================================================================
@@ -56,6 +68,7 @@ if __name__=="__main__":
     times = toolbox.loadPickle(omniTimesData)
     times = np.array([element + timedelta(hours=12) for element in times])
     F107 = toolbox.loadPickle(omniF107Data)
+    F107A = toolbox.rollingAverage(F107, 81, True, True)
     F107B = toolbox.loadPickle(omniF107AveData)
 
     # Obtain FISM2 data:
@@ -90,6 +103,9 @@ if __name__=="__main__":
     np.where((myIrrTimesFISM2Bands >= times[0]) & (myIrrTimesFISM2Bands <= times[-1]))[0]
     correspondingIrrTimesFISM2StanBands = myIrrTimesFISM2Bands[correspondingIndsFISM2StanBands]
     correspondingIrrFISM2StanBands = myIrrDataAllFISM2BandsFixed[correspondingIndsFISM2StanBands, :]
+
+    # Determine how the raw FISM2 data are to be rebinned into the Solomon Bands:
+    # toolbox.solomonAnalysis(correspondingIrrFISM2StanBands, solomonTable, myIrrDataAllFISM2[correspondingIndsFISM2, :], wavelengthsFISM2)
 
     # Manually rebinning of raw FISM2 data to the Solomon bins (to check the binning procedure):
     myIrrDataWavelengthsFISM2_Solomon_n, rebinnedIrrDataFISM2_Solomon_n = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2,
@@ -132,7 +148,7 @@ if __name__=="__main__":
 
     # ==================================================================================================================
     # 2: Run the empirical models:
-    override = False # If True, recompute everything
+    override = True # If True, recompute everything
     if os.path.isfile(results_dir+'cachedData.pkl') == True and override == False:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
@@ -173,10 +189,10 @@ if __name__=="__main__":
                                                                           statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
         # Generate EUVAC data:
-        # ensemble_EuvacIrr, ensemble_average_EuvacIrr, ensemble_stddev_EuvacIrr = irradiance_ensemble(F107, F107B,
+        # ensemble_EuvacIrr, ensemble_average_EuvacIrr, ensemble_stddev_EuvacIrr = irradiance_ensemble(F107, F107A,
         #                                                                                                 iterations=50,
         #                                                                                                 model='EUVAC')
-        euvacFlux, euvacIrr, perturbedEuvacIrr, savedPertsEuvac, cc2Euvac = euvac.euvac(F107, F107B,
+        euvacFlux, euvacIrr, perturbedEuvacIrr, savedPertsEuvac, cc2Euvac = euvac.euvac(F107, F107A,
                                                                                         statsFiles=None) #['corMatEUVAC.pkl',
                                                                                                     #'sigma_EUVAC.pkl'])
 
@@ -192,12 +208,19 @@ if __name__=="__main__":
 
         # Generate HEUVAC data:
         # ensemble_HeuvacIrr, ensemble_average_HeuvacIrr, ensemble_stddev_HeuvacIrr = irradiance_ensemble(F107,
-        #                                                                                              F107B,
+        #                                                                                              F107A,
         #                                                                                              iterations=50,
         #                                                                                              model='HEUVAC')
-        heuvac_wav, heuvacFlux, heuvacIrr, perturbedEuvIrradiance, savedPertsHeuvac, cc2Heuvac = heuvac.heuvac(F107, F107B,
-                                                                                                               torr=True,
-                                                                                                               statsFiles=None) #[
+        cachedData = toolbox.loadPickle(results_dir + 'cachedData.pkl')
+        heuvac_wav = cachedData["heuvac_wav"]
+        heuvacFlux = cachedData["heuvacFlux"]
+        heuvacIrr = cachedData["heuvacIrr"]
+        perturbedEuvIrradiance = cachedData["perturbedEuvIrradiance"]
+        savedPertsHeuvac = cachedData["savedPertsHeuvac"]
+        cc2Heuvac = cachedData["cc2Heuvac"]
+        # heuvac_wav, heuvacFlux, heuvacIrr, perturbedEuvIrradiance, savedPertsHeuvac, cc2Heuvac = heuvac.heuvac(F107, F107A,
+        #                                                                                                        torr=True,
+        #                                                                                                        statsFiles=None) #[
                                                                                                                    #'corMatHEUVAC.pkl',
                                                                                                                    #'sigma_HEUVAC.pkl'])
 
@@ -209,12 +232,12 @@ if __name__=="__main__":
                                                                                       tableFile=neuvac_tableFile_Stan_Bands,
                                                                                       statsFiles=['corMatStanBands.pkl',
                                                                                                   'sigma_NEUVAC_StanBands.pkl'])
-        solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107B, model='HFG')
-        solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107B, model='EUVAC')
 
-        #
-        solomonWavs, solomonIrrFISM2_test = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable,
-                        zero=False)
+        solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
+        solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
+        
+        # solomonWavs, solomonIrrFISM2_test = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable,
+        #                 zero=False)
         # plt.figure();
         # plt.plot(wavelengthsFISM2Bands, correspondingIrrFISM2StanBands[0, :], 'b-', label='FISM2-S')
         # plt.plot(wavelengthsFISM2Bands, correspondingIrrFISM2StanBands[-1, :], 'b--', label='FISM2-S (2)')
@@ -374,16 +397,10 @@ if __name__=="__main__":
     xPos = np.append(euvacTable[:, 1][bandInds], euvacTable[:, 2][-1]) # np.append(euvacTable[:, 1], euvacTable[:, 2][-1])
     sortInds = np.argsort(xPos)
     xPosSorted = xPos[sortInds]
-    def energy(watt):
-        """
-        Given the energy in watts, return the energy in joules, provided that the time given is in seconds.
-        """
-        return watt * 86400
-    def power(myEnergy):
-        return myEnergy / 86400
+
     fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
     # i: Low Activity:
-    chosenDateLow = datetime(1985, 11, 4) # Beginning of Solar Cycle 21
+    chosenDateLow = datetime(2004, 3, 30) # 1985-11-04; Beginning of Solar Cycle 21
     idx, val = toolbox.find_nearest(times, chosenDateLow)
     ax[0].stairs(values=correspondingFism2Irr[idx, :][bandInds], edges=xPosSorted, label='FISM2', lw=9) # sortInds[:-1]
     # lowerBound = ensemble_average_NeuvacIrr[idx, :][bandInds] - ensemble_stddev_NeuvacIrr[idx, :][bandInds]
@@ -402,9 +419,8 @@ if __name__=="__main__":
     secax.set_ylabel('Radiant Exposure (J/m$^2$)', rotation=-90, labelpad=15)
     ax[0].set_title('Solar Spectra during Low Solar Activity ('+str(chosenDateLow)[:-9]+')')
     # ii: High Activity:
-    chosenDateHigh = datetime(1991, 1, 31) # Peak of Solar Cycle 21
+    chosenDateHigh = datetime(2002, 2, 8) # 1991-01-31; Peak of Solar Cycle 21
     idx, val = toolbox.find_nearest(times, chosenDateHigh)
-    chosenDateLow = datetime(1985, 11, 4)  # Beginning of Solar Cycle 21
     ax[1].stairs(values=correspondingFism2Irr[idx, :][bandInds], edges=xPosSorted, label='FISM2', lw=9)
     ax[1].stairs(values=ensemble_average_NeuvacIrr[idx, :][bandInds], edges=xPosSorted, label='NEUVAC-37 (n='+str(iterations)+')', lw=3)
     ax[1].errorbar(xPosSorted[:-1] + 25, ensemble_average_NeuvacIrr[idx, :][bandInds],
@@ -584,8 +600,8 @@ if __name__=="__main__":
     # bins = np.linspace(np.nanmin(NEUVAC_resids_flat), np.nanmax(NEUVAC_resids_flat), num=100)
     bins = np.linspace(-25., 25., num=100)
 
-    myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
-    figHist = toolbox.plotHist(NEUVAC_resids_flat, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev.png', labels=myLabels, density=False)
+    # myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
+    # figHist = toolbox.plotHist(NEUVAC_resids_flat, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev.png', labels=myLabels, density=False)
 
     # Percent Deviation for just three bins: 425 A (12), 725 A (24), and 975 A (31)
     NEUVAC_resids_425 = toolbox.percDev(ensemble_average_NeuvacIrr[:, 12], correspondingFism2Irr[:, 12])
@@ -778,7 +794,7 @@ if __name__=="__main__":
     xPosSortedSolomon = xPosSolomon[sortIndsSolomon]
     fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
     # i: Low Activity:
-    chosenDateLow = datetime(1985, 11, 4)  # Beginning of Solar Cycle 21
+    chosenDateLow = datetime(2004, 3, 30)  # 1985-11-04 Beginning of Solar Cycle 21
     idx, val = toolbox.find_nearest(times, chosenDateLow)
     ax[0].stairs(values=FISM2S_sums[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='FISM2', lw=9)
     ax[0].errorbar(xPosSortedSolomon[:-1]+halfBandWidths[goodInds], NEUVAC_22_sums[idx, :],
@@ -797,9 +813,8 @@ if __name__=="__main__":
     ax[0].set_title('Solar Spectra during Low Solar Activity (' + str(chosenDateLow)[:-9] + ')')
     ax[0].set_ylim([1e-6, 1e-2])
     # ii: High Activity:
-    chosenDateHigh = datetime(1991, 1, 31)  # Peak of Solar Cycle 21
+    chosenDateHigh = datetime(2002, 2, 8)  # 1991-01-31 Peak of Solar Cycle 21
     idx, val = toolbox.find_nearest(times, chosenDateHigh)
-    chosenDateLow = datetime(1985, 11, 4)  # Beginning of Solar Cycle 21
     ax[1].stairs(values=FISM2S_sums[idx, :][sortIndsSolomon[:-1]], edges=xPosSortedSolomon, label='FISM2', lw=9)
     ax[1].errorbar(xPosSortedSolomon[:-1]+halfBandWidths[goodInds], NEUVAC_22_sums[idx, :],
                    yerr=NEUVAC_22_sttdev[idx, :], capsize=7, capthick=2, fmt='o', color='orange')
@@ -962,8 +977,8 @@ if __name__=="__main__":
     #                    np.max([np.nanpercentile(NEUVAC_resids, 75), np.nanpercentile(EUVAC_resids, 75), np.nanpercentile(HEUVAC_resids, 75)]), num=100)
     # bins = np.linspace(np.nanmin(NEUVAC_resids_flat_Solomon), np.nanmax(NEUVAC_resids_flat_Solomon), num=100)
     bins = np.linspace(-25., 25., num=100)
-    myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
-    figHist = toolbox.plotHist(NEUVAC_resids_flat_Solomon, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev_SOLOMON.png', labels=myLabels, density=False)
+    # myLabels = ['Percent Deviation (%)', 'Count', 'NEUVAC Percent Deviation from FISM2']
+    # figHist = toolbox.plotHist(NEUVAC_resids_flat_Solomon, bins=bins, color='orange', saveLoc=results_dir + 'NEUVAC_percDev_SOLOMON.png', labels=myLabels, density=False)
 
     # Percent Deviation for just three bins: 430 A (9), 724 A (11), and 981 A (19)
     NEUVAC_resids_430 = toolbox.percDev(ensemble_average_NeuvacIrrSolomon[:, 9], correspondingIrrFISM2StanBands[:, 9])

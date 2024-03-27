@@ -257,24 +257,24 @@ if __name__=="__main__":
     plt.savefig('Uncertainty/corMatsEUVAC.png', dpi=300)
 
     # 6b: HEUVAC
-    heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107B, torr=True, statsFiles=['corMatHEUVAC.pkl',
-                                                                                           'sigma_HEUVAC.pkl'])
-    residualsArrayHEUVAC = np.subtract(heuvacIrr, correspondingIrrFISM2[:, 7:44])
-    toolbox.savePickle(residualsArrayHEUVAC, 'residualsArrayHEUVAC.pkl')
-    corMatHEUVAC = toolbox.mycorrelate2d(residualsArrayHEUVAC, normalized=True)
-    toolbox.savePickle(corMatHEUVAC, 'corMatHEUVAC.pkl')
-    STDNeuvacResidsHEUVAC = np.zeros(heuvacIrr.shape[1])
-    for i in range(STDNeuvacResidsHEUVAC.shape[0]):
-        STDNeuvacResidsHEUVAC[i] = np.nanstd(residualsArrayHEUVAC[:, i])
-    toolbox.savePickle(STDNeuvacResidsHEUVAC, 'sigma_HEUVAC.pkl')
-    fig, ax = plt.subplots(1, 1, figsize=(10, 8))
-    pos = ax.imshow(corMatHEUVAC, aspect='auto', cmap='bwr', vmin=0.9999, vmax=1., interpolation='none')
-    ax.set_xlabel('Wavelength Band', fontsize=16)
-    ax.set_ylabel('Wavelength Band', fontsize=16)
-    fig.suptitle('Correlation Matrix (HEUVAC - FISM2)', fontsize=18)
-    plt.colorbar(pos)
-    fig.subplots_adjust(top=0.9)
-    plt.savefig('Uncertainty/corMatsHEUVAC.png', dpi=300)
+    # heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107B, torr=True, statsFiles=['corMatHEUVAC.pkl',
+    #                                                                                        'sigma_HEUVAC.pkl'])
+    # residualsArrayHEUVAC = np.subtract(heuvacIrr, correspondingIrrFISM2[:, 7:44])
+    # toolbox.savePickle(residualsArrayHEUVAC, 'residualsArrayHEUVAC.pkl')
+    # corMatHEUVAC = toolbox.mycorrelate2d(residualsArrayHEUVAC, normalized=True)
+    # toolbox.savePickle(corMatHEUVAC, 'corMatHEUVAC.pkl')
+    # STDNeuvacResidsHEUVAC = np.zeros(heuvacIrr.shape[1])
+    # for i in range(STDNeuvacResidsHEUVAC.shape[0]):
+    #     STDNeuvacResidsHEUVAC[i] = np.nanstd(residualsArrayHEUVAC[:, i])
+    # toolbox.savePickle(STDNeuvacResidsHEUVAC, 'sigma_HEUVAC.pkl')
+    # fig, ax = plt.subplots(1, 1, figsize=(10, 8))
+    # pos = ax.imshow(corMatHEUVAC, aspect='auto', cmap='bwr', vmin=0.9999, vmax=1., interpolation='none')
+    # ax.set_xlabel('Wavelength Band', fontsize=16)
+    # ax.set_ylabel('Wavelength Band', fontsize=16)
+    # fig.suptitle('Correlation Matrix (HEUVAC - FISM2)', fontsize=18)
+    # plt.colorbar(pos)
+    # fig.subplots_adjust(top=0.9)
+    # plt.savefig('Uncertainty/corMatsHEUVAC.png', dpi=300)
 
     # 6c: TODO: SOLOMON (HFG and EUVAC) -- Optional
 

@@ -3,6 +3,8 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports
 import os, sys
+
+import matplotlib.pyplot as plt
 from tqdm import tqdm
 import numpy as np
 import pickle
@@ -189,7 +191,7 @@ def obtainFism2(myFism2File, bands=False):
     wavelengths = np.asarray(fism2Data.variables['wavelength'])
     if bands==True: # STANDARD BANDS
         flux = np.asarray(fism2Data.variables['ssi']) # photons/cm2/second
-        bandwidths = np.asarray(fism2Data.variables['band_width'])
+        # bandwidths = np.asarray(fism2Data.variables['band_width'])
         pFlux = flux * 1.0e4 # photons/m2/second
         # Convert fluxes to irradiances:
         irr = np.zeros_like(flux)
@@ -380,3 +382,35 @@ def obtainSDO(seeFile):
     #
     # sys.exit(0)
 # -----------------------------------------------------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    datetimes, wavelengths, irradiances, uncertainties = obtainSEE(TIMED_spectra_folder+'latest_see_L3_merged_2002-2023.ncdf')
+    datetimesF, wavelengthsF, irradiancesF, uncertaintiesF = obtainFism2(fism2_spectra_folder+'daily_data_1947-2023.nc')
+
+    import matplotlib.pylab as pylab
+    params = {'legend.fontsize': 'x-large',
+              'figure.figsize': (14, 6),
+              'axes.labelsize': 'x-large',
+              'axes.titlesize': 'X-Large',
+              'xtick.labelsize': 'X-large',
+              'ytick.labelsize': 'X-large'}
+    sampleVals1 = irradiancesF[21056, :]
+    idx = np.flatnonzero(~np.isnan(sampleVals1))
+    sampleVals1[idx[sampleVals1[idx] < 0]] = np.nan
+    sampleVals2 = irradiances[1000, :]
+    idx = np.flatnonzero(~np.isnan(sampleVals2))
+    sampleVals2[idx[sampleVals2[idx] < 0]] = np.nan
+    pylab.rcParams.update(params)
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.plot(wavelengthsF*10, sampleVals1, color='b', label='FISM2')
+    plt.plot(wavelengths*10, sampleVals2, color='r', label='TIMED/SEE')
+    plt.xlabel('Wavelength (Angstroms)')
+    plt.ylabel('Irradiance (W/m$^2$/nm)')
+    plt.title('Solar EUV Spectra on '+str(datetimes[1000].date()))
+    plt.legend(loc='best')
+    plt.yscale('log')
+
+    # TODO: Fix plot axis labels (fontsize), add a title, etc.
+
+    ellipsis
