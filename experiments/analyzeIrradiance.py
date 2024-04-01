@@ -148,7 +148,7 @@ if __name__=="__main__":
 
     # ==================================================================================================================
     # 2: Run the empirical models:
-    override = True # If True, recompute everything
+    override = False # If True, recompute everything
     if os.path.isfile(results_dir+'cachedData.pkl') == True and override == False:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
@@ -189,40 +189,24 @@ if __name__=="__main__":
                                                                           statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
         # Generate EUVAC data:
-        # ensemble_EuvacIrr, ensemble_average_EuvacIrr, ensemble_stddev_EuvacIrr = irradiance_ensemble(F107, F107A,
-        #                                                                                                 iterations=50,
-        #                                                                                                 model='EUVAC')
+        ensemble_EuvacIrr, ensemble_average_EuvacIrr, ensemble_stddev_EuvacIrr = irradiance_ensemble(F107, F107A,
+                                                                                                        iterations=iterations,
+                                                                                                        model='EUVAC')
         euvacFlux, euvacIrr, perturbedEuvacIrr, savedPertsEuvac, cc2Euvac = euvac.euvac(F107, F107A,
                                                                                         statsFiles=None) #['corMatEUVAC.pkl',
                                                                                                     #'sigma_EUVAC.pkl'])
 
-        # singulars = euvac.euvacTable[:, 1][np.where( (euvac.euvacTable[:, 2] - euvac.euvacTable[:, 1]) == 0 )[0]]
-        # plt.figure();
-        # # plt.plot(wavelengthsFISM2 * 10, myIrrDataAllFISM2[0, :], label='FISM2 Raw')
-        # plt.plot(0.5*(euvac.euvacTable[:, 1]+euvac.euvacTable[:, 2]), euvacIrr[0, :], label='EUVAC', marker='o')
-        # plt.plot(myIrrDataWavelengthsFISM2_n[7:44], correspondingFism2Irr[0, :], label='FISM2', marker='o')
-        # # plt.plot(myIrrDataWavelengthsFISM2_n[7:44], heuvacIrr[0, :], label='HEUVAC')
-        # # for band in singulars:
-        # #     plt.axvline(x=band, color='k')
-        # plt.legend(loc='best')
-
         # Generate HEUVAC data:
-        # ensemble_HeuvacIrr, ensemble_average_HeuvacIrr, ensemble_stddev_HeuvacIrr = irradiance_ensemble(F107,
-        #                                                                                              F107A,
-        #                                                                                              iterations=50,
-        #                                                                                              model='HEUVAC')
-        cachedData = toolbox.loadPickle(results_dir + 'cachedData.pkl')
-        heuvac_wav = cachedData["heuvac_wav"]
-        heuvacFlux = cachedData["heuvacFlux"]
-        heuvacIrr = cachedData["heuvacIrr"]
-        perturbedEuvIrradiance = cachedData["perturbedEuvIrradiance"]
-        savedPertsHeuvac = cachedData["savedPertsHeuvac"]
-        cc2Heuvac = cachedData["cc2Heuvac"]
-        # heuvac_wav, heuvacFlux, heuvacIrr, perturbedEuvIrradiance, savedPertsHeuvac, cc2Heuvac = heuvac.heuvac(F107, F107A,
-        #                                                                                                        torr=True,
-        #                                                                                                        statsFiles=None) #[
-                                                                                                                   #'corMatHEUVAC.pkl',
-                                                                                                                   #'sigma_HEUVAC.pkl'])
+        ensemble_HeuvacIrr, ensemble_average_HeuvacIrr, ensemble_stddev_HeuvacIrr = irradiance_ensemble(F107,
+                                                                                                     F107A,
+                                                                                                     iterations=iterations,
+                                                                                                     model='HEUVAC')
+
+        heuvac_wav, heuvacFlux, heuvacIrr, perturbedEuvIrradiance, savedPertsHeuvac, cc2Heuvac = heuvac.heuvac(F107, F107A,
+                                                                                                               torr=True,
+                                                                                                               statsFiles=None) #[
+                                                                                                                   # 'corMatHEUVAC.pkl',
+                                                                                                                   # 'sigma_HEUVAC.pkl'])
 
         # Generate SOLOMON data and rebin everything into the SOLOMON bins:
         ensemble_NeuvacIrrSolomon, ensemble_average_NeuvacIrrSolomon, ensemble_stddev_NeuvacIrrSolomon = irradiance_ensemble(F107, F107B,
@@ -235,23 +219,6 @@ if __name__=="__main__":
 
         solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
         solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
-
-        # solomonWavs, solomonIrrFISM2_test = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable,
-        #                 zero=False)
-        # plt.figure();
-        # plt.plot(wavelengthsFISM2Bands, correspondingIrrFISM2StanBands[0, :], 'b-', label='FISM2-S')
-        # plt.plot(wavelengthsFISM2Bands, correspondingIrrFISM2StanBands[-1, :], 'b--', label='FISM2-S (2)')
-        # # plt.plot(wavelengthsFISM2Bands[:-1], solomonIrrFISM2_test[0, :], label='FISM2-S-Test')
-        # plt.plot(wavelengthsFISM2Bands[:-1], solomonIrrEUVAC[0, :], 'g-', label='EUVAC-S')
-        # plt.plot(wavelengthsFISM2Bands[:-1], solomonIrrEUVAC[-1, :], 'g--', label='EUVAC-S (2)')
-        # plt.legend(loc='best')
-
-        # for l in range(heuvacIrr.shape[1]):
-        #     l = 19
-        #     plt.figure()
-        #     plt.fill_between(times, (ensemble_average_NeuvacIrrSolomon-ensemble_stddev_NeuvacIrrSolomon)[:, l], (ensemble_average_NeuvacIrrSolomon+ensemble_stddev_NeuvacIrrSolomon)[:, l], color='gray', alpha=0.8)
-        #     plt.plot(times, ensemble_average_NeuvacIrrSolomon[:, l], color='k')
-        #     plt.plot(times, correspondingIrrFISM2StanBands[:, l], color='r')
 
         cachedData = {
             "iterations": iterations,
@@ -835,9 +802,9 @@ if __name__=="__main__":
     # 8B: Plot sample TIME SERIES during Low and High Solar Activity (3 bands only): (9, 11, 19)
     fig, axs = plt.subplots(nrows=2, ncols=3)
     # Top-left: Low Solar Activity 430 A
-    axs[0, 0].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, 9], label='FISM2-S', lw=3)
-    axs[0, 0].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 9], label='NEUVAC-S (n='+str(iterations)+')', lw=3)
-    axs[0, 0].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 9], label='EUVAC-S', lw=3)
+    axs[0, 0].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, 9], label='FISM2', lw=3)
+    axs[0, 0].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 9], label='NEUVAC-22 (n='+str(iterations)+')', lw=3)
+    axs[0, 0].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 9], label='EUVAC-22', lw=3)
     axs[0, 0].plot(lowSolarTimes, solomonIrrHFG[lowSolarTimeInds, 9], label='HFG', lw=3, color='purple')
     axs[0, 0].set_ylabel('Irradiance (W/m$^2$)')
     axs[0, 0].set_title('430 $\mathrm{\AA}$')
@@ -852,34 +819,34 @@ if __name__=="__main__":
     axs[0, 1].legend(loc='best')
     axs[0, 1].set_xticklabels(axs[0, 1].get_xticklabels(), rotation=45, ha='right')
     # Top-right: Low Solar Activity 981 A
-    axs[0, 2].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, 19], label='FISM2-S', lw=3)
-    axs[0, 2].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 19], label='NEUVAC-S (n='+str(iterations)+')', lw=3)
-    axs[0, 2].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 19], label='EUVAC-S', lw=3)
+    axs[0, 2].plot(lowSolarTimes, correspondingIrrFISM2StanBands[lowSolarTimeInds, 19], label='FISM2', lw=3)
+    axs[0, 2].plot(lowSolarTimes, ensemble_average_NeuvacIrrSolomon[lowSolarTimeInds, 19], label='NEUVAC-22 (n='+str(iterations)+')', lw=3)
+    axs[0, 2].plot(lowSolarTimes, solomonIrrEUVAC[lowSolarTimeInds, 19], label='EUVAC-22', lw=3)
     axs[0, 2].plot(lowSolarTimes, solomonIrrHFG[lowSolarTimeInds, 19], label='HFG', lw=3, color='purple')
     axs[0, 2].set_title('981 $\mathrm{\AA}$')
     axs[0, 2].legend(loc='best')
     axs[0, 2].set_xticklabels(axs[0, 2].get_xticklabels(), rotation=45, ha='right')
     # Bottom-left: High Solar Activity 430 A
-    axs[1, 0].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 9], label='FISM2-S', lw=3)
-    axs[1, 0].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 9], label='NEUVAC-S (n='+str(iterations)+')', lw=3)
-    axs[1, 0].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 9], label='EUVAC-S', lw=3)
+    axs[1, 0].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 9], label='FISM2', lw=3)
+    axs[1, 0].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 9], label='NEUVAC-22 (n='+str(iterations)+')', lw=3)
+    axs[1, 0].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 9], label='EUVAC-22', lw=3)
     axs[1, 0].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, 9], label='HFG', lw=3, color='purple')
     axs[1, 0].set_ylabel('Irradiance (W/m$^2$)')
     axs[1, 0].set_title('430 $\mathrm{\AA}$')
     axs[1, 0].legend(loc='best')
     axs[1, 0].set_xticklabels(axs[1, 0].get_xticklabels(), rotation=45, ha='right')
     # Bottom-middle: High Solar Activity 724 A
-    axs[1, 1].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 11], label='FISM2-S', lw=3)
-    axs[1, 1].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 11], label='NEUVAC-S (n='+str(iterations)+')', lw=3)
-    axs[1, 1].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 11], label='EUVAC-S', lw=3)
+    axs[1, 1].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 11], label='FISM2', lw=3)
+    axs[1, 1].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 11], label='NEUVAC-22 (n='+str(iterations)+')', lw=3)
+    axs[1, 1].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 11], label='EUVAC-22', lw=3)
     axs[1, 1].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, 11], label='HFG', lw=3, color='purple')
     axs[1, 1].set_title('724 $\mathrm{\AA}$')
     axs[1, 1].legend(loc='best')
     axs[1, 1].set_xticklabels(axs[1, 1].get_xticklabels(), rotation=45, ha='right')
     # Bottom-right: High Solar Activity 981 A
-    axs[1, 2].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 19], label='FISM2-S', lw=3)
-    axs[1, 2].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 19], label='NEUVAC-S (n='+str(iterations)+')', lw=3)
-    axs[1, 2].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 19], label='EUVAC-S', lw=3)
+    axs[1, 2].plot(highSolarTimes, correspondingIrrFISM2StanBands[highSolarTimeInds, 19], label='FISM2', lw=3)
+    axs[1, 2].plot(highSolarTimes, ensemble_average_NeuvacIrrSolomon[highSolarTimeInds, 19], label='NEUVAC-22 (n='+str(iterations)+')', lw=3)
+    axs[1, 2].plot(highSolarTimes, solomonIrrEUVAC[highSolarTimeInds, 19], label='EUVAC-22', lw=3)
     axs[1, 2].plot(highSolarTimes, solomonIrrHFG[highSolarTimeInds, 19], label='HFG', lw=3, color='purple')
     axs[1, 2].set_title('981 $\mathrm{\AA}$')
     axs[1, 2].legend(loc='best')
@@ -955,8 +922,8 @@ if __name__=="__main__":
         mapeHFG.append(toolbox.mape(correspondingIrrFISM2StanBands[:, i], solomonIrrHFG[:, i]) * 100)
     sortWavSolomon = xPosSortedSolomon[:-1]
     plt.figure()
-    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeNEUVACS)[sortIndsSolomon[:-1]], color='orange', marker='o', label='NEUVAC-S (n='+str(iterations)+')')
-    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeEUVACS)[sortIndsSolomon[:-1]], color='green', marker='o', label='EUVAC-S')
+    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeNEUVACS)[sortIndsSolomon[:-1]], color='orange', marker='o', label='NEUVAC-22 (n='+str(iterations)+')')
+    plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeEUVACS)[sortIndsSolomon[:-1]], color='green', marker='o', label='EUVAC-22')
     plt.plot(xPosSortedSolomon[:-1], np.asarray(mapeHFG)[sortIndsSolomon[:-1]], color='purple', marker='o', label='HFG')
     plt.yscale('log')
     plt.xlabel('Wavelength ($\mathrm{\AA}$)')
@@ -1009,7 +976,7 @@ if __name__=="__main__":
     HFG_resids_981_Solomon = HFG_resids_Solomon[:, 19]
     fig, axs = plt.subplots(nrows=1, ncols=3, sharey=True)
     axs[0].scatter(F107[sortF107], NEUVAC_resids_430_Solomon[sortF107], color='orange',
-                   label='NEUVAC-S (n=' + str(iterations) + ')')
+                   label='NEUVAC-22 (n=' + str(iterations) + ')')
     axs[0].scatter(F107[sortF107], EUVAC_resids_430_Solomon[sortF107], color='green', label='EUVAC-22')
     axs[0].scatter(F107[sortF107], HFG_resids_430_Solomon[sortF107], color='purple', label='HFG')
     axs[0].set_xlabel('F10.7 (sfu)')
