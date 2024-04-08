@@ -132,13 +132,6 @@ if __name__=="__main__":
     myIrrDataAllFISM2BandsFixed = myIrrDataAllFISM2Bands.copy()
     myIrrDataAllFISM2BandsFixed[myIrrDataAllFISM2BandsFixed <= 0] = np.nan
 
-    # Rebin the high-resolution daily FISM2 data into the Solomon bins, as a sanity check:
-    # matchInds = np.where((myIrrTimesFISM2Bands >= myIrrTimesFISM2[0]) & (myIrrTimesFISM2Bands <= myIrrTimesFISM2[-1]))[0]
-    # matchedFISM2IrrSolomon = myIrrDataAllFISM2BandsFixed[matchInds, :]
-    # myWavelengthsFISM2Bands, rebinnedIrrDataFISM2Bands = toolbox.solomonAnalysis(matchedFISM2IrrSolomon, solomonTable,
-    #                                                                              myIrrDataAllFISM2,
-    #                                                                              wavelengthsFISM2)  # .newbins(wavelengthsFISM2, myIrrDataAllFISM2, solomonTable, zero=True)
-
     if refit[1] == True:
         # Perform a non-linear fit between F10.7, F10.7B, and FISM2:
         midsS = (wavelengthsFISM2Bands * 10)[:-1]

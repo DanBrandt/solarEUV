@@ -108,9 +108,9 @@ if __name__=="__main__":
     # toolbox.solomonAnalysis(correspondingIrrFISM2StanBands, solomonTable, myIrrDataAllFISM2[correspondingIndsFISM2, :], wavelengthsFISM2)
 
     # Manually rebinning of raw FISM2 data to the Solomon bins (to check the binning procedure):
-    myIrrDataWavelengthsFISM2_Solomon_n, rebinnedIrrDataFISM2_Solomon_n = toolbox.newbins(wavelengthsFISM2, myIrrDataAllFISM2,
-                                                                          solomonTable,
-                                                                          zero=True)
+    myIrrDataWavelengthsFISM2_Solomon_n, rebinnedIrrDataFISM2_Solomon_n = toolbox.newbins(wavelengthsFISM2,
+                                                                                               myIrrDataAllFISM2,
+                                                                                               solomonTable, zero=True)
     correspondingRebinnedIrrDataFISM2_Solomon_n = rebinnedIrrDataFISM2_Solomon_n[correspondingIndsFISM2StanBands, :]
 
     # Make a chart of different wavelength resolutions laid on top of each other:
@@ -758,7 +758,8 @@ if __name__=="__main__":
     # Continue:
     xPosSolomon = np.asarray(xPosSolomonNew)
     sortIndsSolomon = np.argsort(xPosSolomon)
-    xPosSortedSolomon = xPosSolomon[sortIndsSolomon]
+    # The edges of the bins are what we want:
+    xPosSortedSolomon = np.array([0.5, 4, 8, 18, 32, 70, 155, 224, 290, 320, 540, 650, 798, 913, 975, 987, 1027]) # xPosSolomon[sortIndsSolomon]
     fig, ax = plt.subplots(nrows=1, ncols=2, sharex=True, sharey=True)
     # i: Low Activity:
     chosenDateLow = datetime(2004, 3, 30)  # 1985-11-04 Beginning of Solar Cycle 21

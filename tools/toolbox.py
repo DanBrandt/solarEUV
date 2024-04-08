@@ -1197,80 +1197,9 @@ def percDev(x, y):
     """
     return np.divide(np.subtract(x, y), y) * 100
 
-def solomonAnalysis(fismStanBands, fismWavesSolomon, fismDaily, fismWavesDaily):
-    """
-    Given FISM2 data in the standard bands and in the high-resolution wavelength scheme for the daily values, figure
-    out what coefficients are needed to rebin the daily values into the standard bands.
-    :param fismStanBands: ndarray
-        A 2D array of FISM2 data in the standard bands from Solomon and Qian. Each row is an observation and each column
-        a wavelength bin.
-    :param fismWavesSolomon: dict
-        The wavelength boundaries for the Solomon binning scheme. fismWavesSolomon['short'] contains the left-sided
-        bin boundaries, and fismWavesSolomon['long'] contains the right-sided bin boundaries. Units in Angstroms.
-    :param fismDaily: ndarray
-        A 2D array of FISM2 data in the high-resolution wavelength scheme for the daily spectra. Each row is an
-        observation and each column a wavelength bin.
-    :param fismWavesDaily: ndarray
-        The wavelengths at which every FISM2 daily value is reported. Units in nm.
-    """
-    nativeBinWidth = np.round(np.nanmean(np.diff(fismWavesDaily)), 2)
-    manualFismStanBands = np.zeros_like(fismStanBands)
-    fismStanBandsShort = fismWavesSolomon['short'] / 10.
-    fismStanBandsLong = fismWavesSolomon['long'] / 10.
+########################################################################################################################
+# TODO: Python versions of Liying Qian's Wavelength Rebinning Code from here: https://download.hao.ucar.edu/pub/lqian/tlsm/idl/
 
-    # Define an optimization function:
-    def f(x):
-        y = np.dot(A, x) - b
-        return np.dot(y, y)
-
-    # Loop through the solomon bins:
-    for i in range(len(fismWavesSolomon['short'])):
-        # For the case where the bins ARE NOT overlapping:
-        validInds = np.where((fismWavesDaily >= fismStanBandsShort[i]) & (fismWavesDaily < fismStanBandsLong[i]))[0]
-        # Sum the values in the bins:
-        manualFismStanBands[:, i] = np.sum(fismDaily[:, validInds] * nativeBinWidth, axis=-1)
-
-    # Handle the overlapping bins individually:
-    overlappingSections = [[11, 13], [13, 16], [16, 19]]
-    coeffs = []
-    for pair in overlappingSections:
-        validIndsOverlapping = np.where((fismWavesDaily >= fismStanBandsShort[pair[0]]) & (fismWavesDaily <= fismStanBandsLong[pair[0]]))[0]
-        totalIrradianceInSection = np.sum(fismDaily[:, validIndsOverlapping], axis=-1)* 0.1 # W/m^2
-        referenceIrradiance = fismStanBands[:, pair[0]:pair[1]] # W/m^2
-        # Solve the linear system:
-        currentCoeffs = []
-        for j in range(len(totalIrradianceInSection)):
-            # Set up the system of equations:
-            if referenceIrradiance.shape[1] > 2:
-                A = np.array([
-                    [totalIrradianceInSection[j], 0, 0],
-                    [0, totalIrradianceInSection[j], 0],
-                    [0, 0, totalIrradianceInSection[j]],
-                    ])
-                b = np.array([
-                    referenceIrradiance[j, 0],
-                    referenceIrradiance[j, 1],
-                    referenceIrradiance[j, 2],
-                    ])
-                cons = ({'type': 'eq', 'fun': lambda x: x.sum() - 1})
-                res = opt.minimize(f, [0.2, 0.3, 0.5], method='SLSQP', constraints=cons, options={'disp': False})
-                x = res['x']
-            else:
-                A = np.array([
-                    [],
-                    [1, 1, 1]
-                ])
-                b = np.array([
-                    0,
-                    1
-                ])
-            x = np.linalg.solve(A, b)
-            currentCoeffs.append(x)
-
-
-
-
-    ellipsis
 
 
 #-----------------------------------------------------------------------------------------------------------------------
