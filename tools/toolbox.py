@@ -1163,11 +1163,11 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None, densit
     else:
         fig = plt.figure()
         sns.histplot(prunedData, kde=True, bins=bins, color=color).lines[0].set_color('black')
-    plt.xlabel(labels[0])
-    plt.ylabel(labels[1])
-    plt.title(labels[2])
-    plt.legend(loc='best')
-    plt.tick_params(axis='both')
+    plt.xlabel(labels[0], fontsize=23)
+    plt.ylabel(labels[1], fontsize=23)
+    plt.title(labels[2], fontsize=25)
+    # plt.legend(loc='best')
+    plt.tick_params(axis='both', labelsize=22)
     plt.xlim([-25., 25.])
     if logScale == 'x':
         plt.xscale('log')
@@ -1196,6 +1196,45 @@ def percDev(x, y):
         The true value(s).
     """
     return np.divide(np.subtract(x, y), y) * 100
+
+def readFISM2(fname):
+    """
+    Given a FISM2 netcdf file, read it in and output a .dat file with the same format as the .dat files here:
+    https://github.com/aaronjridley/GITM/tree/master/srcData/FISM
+    """
+    from netCDF4 import Dataset
+    fism2Data = Dataset(fname)
+
+    irradiance = np.asarray(fism2Data.variables['irradiance'])  # W/m^2/nm
+    dates = fism2Data.variables['date']
+    datetimes = []
+    for i in range(len(dates)):
+        year = dates[i][:4]
+        day = dates[i][4:]
+        currentDatetime = datetime(int(year), 1, 1) + timedelta(int(day) - 1) + timedelta(hours=12)
+        datetimes.append(currentDatetime)
+
+    def numStr(num):
+        if int(num) < 10:
+            return ' '+str(int(num))
+        else:
+            return str(int(num))
+
+    i = 0
+    with open('fism2irr_daily.dat', 'w') as fism2File:
+        fism2File.write('#START\n')
+        dateStr = str(datetimes[0])[:4]+' '+numStr(str(datetimes[0])[5:7])+' '+numStr(str(datetimes[0])[8:10])
+        if i == 0:
+            timeStr = '  0  0  0 '
+        else:
+            timeStr = ' 12  0  0 '
+        dateTimeStr = dateStr + timeStr
+        strList = [str(element) for element in irradiance[i, :]]
+        irrStr = ' '.join(strList)
+        fileStr = dateTimeStr + irrStr + '\n'
+        fism2File.write(fileStr)
+        i += 1
+    print('Wrote file to: '+os.getcwd()+'/fism2irr_daily.dat')
 
 ########################################################################################################################
 # TODO: Python versions of Liying Qian's Wavelength Rebinning Code from here: https://download.hao.ucar.edu/pub/lqian/tlsm/idl/

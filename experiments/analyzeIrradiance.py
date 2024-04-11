@@ -60,6 +60,8 @@ def power(myEnergy):
 # Execution:
 if __name__=="__main__":
     # ==================================================================================================================
+    # fname = '../../../Downloads/fism2flux_daily_1947-2024.nc'
+    # fism2data = toolbox.readFISM2(fname)
     # 1: OBTAIN DATA
     # Load in F10.7 and F10.7A data (OMNIWeb):
     omniTimesData = '../solarIndices/F107/OMNIWeb/OMNIF107times.pkl'
