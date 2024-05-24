@@ -5,6 +5,7 @@
 import pandas as pd
 import numpy as np
 import math, pickle, os
+from numpy import ma
 from sklearn.impute import SimpleImputer
 from datetime import datetime, timedelta
 from scipy.interpolate import CubicSpline
@@ -494,7 +495,7 @@ def binRMSE(xdata, ydataEst, ydataTrue, step=10, saveLoc=None, titleStr=None, no
     """
     Given some 1D independent variable data, some 1D estimates of dependent variable data, 1D true values of dependent
     variable data, and a step size, divide the xdata into bins of width equal to the step size and compute the RMSE
-    error in each bin. Then compute the correlation between the the RMSE and the binned xdata. Automatically saves
+    error in each bin. Then compute the correlation between the RMSE and the binned xdata. Automatically saves
     a figure for the results at a user-defined location.
     :param xdata: ndarray
         1D independent variable data.
@@ -1058,9 +1059,9 @@ def find_exp(number) -> int:
     base10 = log10(abs(number))
     return 1*(10**(floor(base10)))
 
-def get_cc(array1, array2):
+def get_cc(array1, array2, normalize=True):
     """
-    Compute the normalized cross-correlation of two 1D arrays of the same length.
+    Compute the cross-correlation of two 1D arrays of the same length.
     :param array1: ndarray
         A 1D array of length n.
     :param array2: ndarray
@@ -1068,14 +1069,18 @@ def get_cc(array1, array2):
     :return c: float
         The normalized correlation of the two arrays.
     """
-    a = (array1 - np.mean(array1)) / (np.std(array1) * len(array1))
-    b = (array2 - np.mean(array2)) / (np.std(array2))
-    c = np.correlate(a, b)
+    if normalize:
+        a = (array1 - np.mean(array1)) / (np.std(array1) * len(array1))
+        b = (array2 - np.mean(array2)) / (np.std(array2))
+        c = np.correlate(a, b)
+    else:
+        c = np.correlate(array1, array2)
     return c
 
 def mycorrelate2d(df, normalized=False):
     """
     Compute the correlation matrix from 2D data, where each row is cross correlated with the others.
+    This function handles NaN values by ignoring them.
     :param df: ndarray
         A 2D array of dimensions n x m.
     :param normalized: bool
@@ -1088,17 +1093,18 @@ def mycorrelate2d(df, normalized=False):
     ccm = np.zeros((df.shape[1], df.shape[1]))
     # Fill in each entry of the matrix one-by-one:
     for i in range(df.shape[1]):
-        outer_row = df[i][:]
+        outer_row = df[:, i]
         for j in range(df.shape[1]):
-            inner_row = df[j][:]
+            inner_row = df[:, j]
+            goodInds = np.logical_and(~np.isnan(outer_row), ~np.isnan(inner_row))
             if (not normalized):
-                x = np.correlate(inner_row, outer_row)
+                x = np.correlate(outer_row[goodInds], inner_row[goodInds])
             else:
-                x = get_cc(inner_row, outer_row)
+                x = get_cc(outer_row[goodInds], inner_row[goodInds])
                 # a = (inner_row - np.mean(inner_row)) / (np.std(inner_row) * len(inner_row))
                 # b = (outer_row - np.mean(outer_row)) / (np.std(outer_row) )
                 # x = np.correlate(a, b)
-            ccm[i][j] = x
+            ccm[i, j] = x
     return ccm
 
 def linear(x, a, b):
@@ -1145,7 +1151,7 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None, densit
     :param labels: list
         A 3-element list containing string for the xlabel, ylabel, and the title.
     :param logScale: bool
-        If 'x', scales the x axis on a log scale. If 'y', scales the y axis on a log scale. If 'both', scales both.
+        If 'x', scales the x-axis on a log scale. If 'y', scales the y-axis on a log scale. If 'both', scales both.
     :param density: bool
         If True, computes the density curve of the histogram. If False, simply fits a skew normal distribution to the
         data.
@@ -1155,19 +1161,23 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None, densit
     cleanData = data[validLocs]
     prunedData = cleanData[np.where((cleanData >= bins[0]) & (cleanData <= bins[-1]))[0]]
     if density == False:
-        fig = plt.figure()
-        plt.hist(data, bins=bins, density=True, color=color, label='Data')
+        fig, ax = plt.subplots()
+        ax.hist(data, bins=bins, density=True, color=color, label='Data')
         a, loc, scale = stats.skewnorm.fit(prunedData)
         p = stats.skewnorm.pdf(xVals, a, loc, scale)
-        plt.plot(xVals, p, 'k', linewidth=2, label=r'Fit: $\alpha$='+str(np.round(a, 2))+r', $\xi$='+str(np.round(loc, 2))+r', $\omega$='+str(np.round(scale, 2)))
+        ax.plot(xVals, p, 'k', linewidth=2, label=r'Fit: $\alpha$='+str(np.round(a, 2))+r', $\xi$='+str(np.round(loc, 2))+r', $\omega$='+str(np.round(scale, 2)))
     else:
-        fig = plt.figure()
-        sns.histplot(prunedData, kde=True, bins=bins, color=color).lines[0].set_color('black')
-    plt.xlabel(labels[0], fontsize=23)
-    plt.ylabel(labels[1], fontsize=23)
-    plt.title(labels[2], fontsize=25)
+        fig, ax = plt.subplots()
+        sns.histplot(prunedData, kde=True, bins=bins, color=color, line_kws={'lw': 5}).lines[0].set_color('black')
+    # Text and labeling:
+    wavelength_str = labels[2][-18:] # Valid only for wavelengths under 1000 Angstroms
+    textstr = r''+wavelength_str+'\n'+'$\mu$: '+str(np.round(np.mean(prunedData), 2))+'\n $\sigma$: '+str(np.round(np.std(prunedData), 2))
+    plt.text(x=0.9, y=0.8, s=textstr, ha='center', va='center', fontsize=50, transform = ax.transAxes)
+    plt.xlabel(labels[0], fontsize=37)
+    plt.ylabel(labels[1], fontsize=37)
+    # plt.title(labels[2], fontsize=35)
     # plt.legend(loc='best')
-    plt.tick_params(axis='both', labelsize=22)
+    plt.tick_params(axis='both', labelsize=35)
     plt.xlim([-25., 25.])
     if logScale == 'x':
         plt.xscale('log')
@@ -1178,7 +1188,8 @@ def plotHist(data, bins, color, saveLoc=None, labels=None, logScale=None, densit
         plt.yscale('log')
     else:
         pass
-    plt.axvline(x=0, color='gray', linestyle='--', alpha=0.8)
+    plt.axvline(x=0, color='gray', linestyle='--', alpha=0.8, linewidth=5)
+    plt.tight_layout()
     if density == False:
         print('Skewnormal Parameters: Alpha=' + str(a) + ', Loc=' + str(loc) + ', Scale=' + str(scale)+', Kurtosis='+
               str(stats.kurtosis(data[validLocs]))+', Skew='+str(stats.skew(data[validLocs])))

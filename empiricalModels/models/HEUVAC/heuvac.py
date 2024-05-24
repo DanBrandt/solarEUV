@@ -126,7 +126,7 @@ def heuvac(F107, F107A, torr=True, statsFiles=None):
         heuvacFlux = np.zeros((len(F107), 106))
         heuvacIrr = np.zeros((len(F107), 106))
     if not statsFiles:
-        # Loop across all of the F10.7 values:
+        # Loop across all the F10.7 values:
         os.chdir(directory)
         for i in tqdm(range(len(F107))):
             # Write the input file and run HEUVAC:

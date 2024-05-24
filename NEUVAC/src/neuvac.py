@@ -11,6 +11,7 @@ from scipy.optimize import curve_fit, minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta
 from tqdm import tqdm
+import matplotlib.cm as cm
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -184,7 +185,7 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
                 P_n.append(P_j)
                 P_1 = P_n[0]
                 # Normalized Correlated Perturbation:
-                C_j1 = corMat[0, j] # Only consider correlation with the first wavelength bin
+                C_j1 = corMat[7, j] # Only consider correlation with the first wavelength bin (of the EUVAC bins!)
                 N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
                 # Actual Normalized Correlated Perturbation:
                 A_j = STDNeuvacResids[j] * N_j
@@ -202,12 +203,24 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
                 savedPerts[i, j] = A_j
                 k += 1
 
-        # Generate a correlation matrix of the perturbations:
-        cc2 = np.zeros((nWaves, nWaves))
-        for iW1 in range(nWaves):
-            for iW2 in range(nWaves):
-                cc = tools.toolbox.get_cc(savedPerts[:, iW1], savedPerts[:, iW2])
-                cc2[iW1, iW2] = cc
+        # Generate a correlation matrix of the perturbations (to compare to the input correlation matrix as a sanity check):
+        cc2 = tools.toolbox.mycorrelate2d(savedPerts, normalized=True)
+
+        # Visualize the original correlation matrix alongside the correlation matrix from the perturbations (sanity check):
+        cmap = cm.bwr
+        lims = [-1, 1]
+        fig = plt.figure(figsize=(10, 6))
+        ax1 = fig.add_axes([0.05, 0.1, 0.4, 0.7])
+        ax2 = fig.add_axes([0.5, 0.1, 0.4, 0.7])
+        pos1 = ax1.pcolor(corMat, vmin=lims[0], vmax=lims[-1], cmap=cmap)
+        fig.colorbar(pos1)
+        ax1.set_title('Original CC')
+        ax1.set_aspect(1)
+        pos2 = ax2.pcolor(cc2, vmin=lims[0], vmax=lims[-1], cmap=cmap)
+        fig.colorbar(pos2)
+        ax2.set_aspect(1)
+        ax2.set_title('Revised CC')
+        plt.tight_layout()
 
         if bands == 'EUVAC':  # Returns values ONLY for those corresponding to the wavelengths used by EUVAC
             return euvIrradiance[:, 7:44], perturbedEuvIrradiance[:, 7:44], savedPerts, cc2
