@@ -3,7 +3,7 @@
 #-----------------------------------------------------------------------------------------------------------------------
 # Top-level Imports:
 import numpy as np
-import matplotlib
+import matplotlib, sys
 matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -64,7 +64,7 @@ if __name__=="__main__":
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
     mids = 0.5 * (euv_data_59['long'] + euv_data_59['short'])
 
-    refit = [False, True] # Control whether not refitting is done for the GITM bins and the Solomon bins, respectively.
+    refit = [True, True] # Control whether not refitting is done for the GITM bins and the Solomon bins, respectively.
     # ==================================================================================================================
     # GITM BINS
     # ==================================================================================================================
@@ -81,6 +81,7 @@ if __name__=="__main__":
     # FISM2 data extends between 1947-02-14; 00:00 and 2023-08-29; 00:00.
 
     if refit[0] == True:
+        print('Fitting the NEUVAC base model...')
         # Perform a non-linear fit between F10.7, F10.7B, and FISM2:
         neuvacTable = neuvac.neuvacFit([times, F107, F107B], myIrrTimesFISM2, myIrrDataAllFISM2Fixed, wavelengths=mids, label='FISM2')
 
@@ -107,7 +108,7 @@ if __name__=="__main__":
                          'WAVES WAVEL A_i B_i C_i D_i E_i F_i\n')
             for i in range(neuvacTable.shape[0]):
                 output.writelines(str(euv_data_59['short'][i])+' '+str(euv_data_59['long'][i])+' '+toolbox.stringList(neuvacTable[i, :])+'\n')
-
+        print('Fitting of NEUVAC complete!')
         neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands=None, tableFile=neuvac_tableFile)
 
         # View the result of the model fits, as a sanity check:
@@ -133,6 +134,7 @@ if __name__=="__main__":
     myIrrDataAllFISM2BandsFixed[myIrrDataAllFISM2BandsFixed <= 0] = np.nan
 
     if refit[1] == True:
+        print('Fitting the NEUVAC-22 base model...')
         # Perform a non-linear fit between F10.7, F10.7B, and FISM2:
         midsS = (wavelengthsFISM2Bands * 10)[:-1]
         neuvacTableS = neuvac.neuvacFit([times, F107, F107B], myIrrTimesFISM2Bands, myIrrDataAllFISM2BandsFixed[:, :-1], wavelengths=midsS,
@@ -170,6 +172,7 @@ if __name__=="__main__":
         #     plt.plot(times, neuvacIrrS[:, i], label='NEUVAC')
         #     plt.legend(loc='best')
         #     plt.title('Irradiance Time Series at :'+str(np.round(midsS[i],2))+' Angstroms')
+        print('Fitting of NEUVAC-22 complete!')
 
-    print('NEUVAC model fitting complete.')
+    sys.exit(0)
 #-----------------------------------------------------------------------------------------------------------------------

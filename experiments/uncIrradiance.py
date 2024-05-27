@@ -69,7 +69,7 @@ if __name__=="__main__":
     plt.plot(np.linspace(0, len(F107B) - 1, len(F107B)), F107B, 'g-')
 
     # Generate NEUVAC data:
-    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands=None, tableFile=neuvac_tableFile) # perturbedNeuvacIrr, savedPerts, cc2
+    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands=None, tableFile=neuvac_tableFile) # statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl']) # perturbedNeuvacIrr, savedPerts, cc2
 
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
@@ -122,9 +122,9 @@ if __name__=="__main__":
     # 1: Compute the normalized cross-correlation matrix between residuals in different bins.
     residualsArray = np.subtract(neuvacIrr, correspondingIrrFISM2)
     toolbox.savePickle(residualsArray, 'residualsArray.pkl')
+
     corMat = toolbox.mycorrelate2d(residualsArray, normalized=True)
     toolbox.savePickle(corMat, 'corMat.pkl')
-
     # ------------------------------------------------------------------------------------------------------------------
     # 2: Compute the normalized standard deviation of NEUVAC irradiance residuals (in each band):
     STDNeuvacResids = np.zeros(neuvacIrr.shape[1])
@@ -147,7 +147,8 @@ if __name__=="__main__":
     # fig.colorbar(pos, ax=axs[0])
     # fig.colorbar(pos2, ax=axs[1])
     fig = plt.figure()
-    pos = plt.imshow(corMat, aspect='auto', cmap='bwr', vmin=0.995, vmax=1.0, interpolation='none')
+    pos = plt.imshow(corMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none') # 0.995
+    # pos = plt.imshow(originalCorMat, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')  # 0.995
     plt.xlabel('Wavelength Band')
     plt.ylabel('Wavelength Band')
     plt.title('Covariance Matrix (NEUVAC-59 - FISM2)')
@@ -213,8 +214,11 @@ if __name__=="__main__":
     correspondingIrrTimesFISM2StanBands = myIrrTimesFISM2Bands[correspondingIndsFISM2StanBands]
     correspondingIrrFISM2StanBands = myIrrDataAllFISM2BandsFixed[correspondingIndsFISM2StanBands, :]
 
+    # Mask the NaNs:
+    cleanCorrespondingIrrFISM2StanBands = np.ma.masked_invalid(correspondingIrrFISM2StanBands)
+
     # Compute the normalized cross-correlation matrix between residuals in different bins:
-    residualsArrayStanBands = np.subtract(neuvacIrrSolomon, correspondingIrrFISM2StanBands[:, :-1])
+    residualsArrayStanBands = np.subtract(neuvacIrrSolomon, cleanCorrespondingIrrFISM2StanBands[:, :-1])
     toolbox.savePickle(residualsArrayStanBands, 'residualsArrayStanBands.pkl')
     corMatStanBands = toolbox.mycorrelate2d(residualsArrayStanBands, normalized=True)
     toolbox.savePickle(corMatStanBands, 'corMatStanBands.pkl')
@@ -228,7 +232,7 @@ if __name__=="__main__":
 
     # View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
     fig = plt.figure()
-    pos = plt.imshow(corMatStanBands, aspect='auto', cmap='bwr', interpolation='none')
+    pos = plt.imshow(corMatStanBands, aspect='auto', cmap='bwr', vmin=-0.1, vmax=1.0, interpolation='none')
     plt.xlabel('Wavelength Band')
     plt.ylabel('Wavelength Band')
     plt.title('Covariance Matrix (NEUVAC-22 - FISM2)')
