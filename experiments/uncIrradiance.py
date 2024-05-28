@@ -69,7 +69,7 @@ if __name__=="__main__":
     plt.plot(np.linspace(0, len(F107B) - 1, len(F107B)), F107B, 'g-')
 
     # Generate NEUVAC data:
-    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands=None, tableFile=neuvac_tableFile) # statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl']) # perturbedNeuvacIrr, savedPerts, cc2
+    neuvacIrr, _, _, _ = neuvac.neuvacEUV(F107, F107B, bands=None, tableFile=neuvac_tableFile) #, statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl']) # perturbedNeuvacIrr, savedPerts, cc2
 
     # Load in FISM2 data:
     euv_data_59 = read_euv_csv_file(euv_folder + 'euv_59.csv', band=False)
@@ -197,7 +197,7 @@ if __name__=="__main__":
     # 5: Do all of the above, but for the SOLOMON version of NEUVAC:
 
     # Generate NEUVAC data:
-    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon) # statsFiles=['corMatStanBands.pkl', 'sigma_NEUVAC_StanBands.pkl'])
+    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon) #, statsFiles=['corMatStanBands.pkl', 'sigma_NEUVAC_StanBands.pkl'])
 
     # Load in FISM2 STAN BAND data:
     # FISM2 Stan Band Results:
@@ -232,7 +232,7 @@ if __name__=="__main__":
 
     # View the correlation matrix for the residuals of the perturbed NEUVAC irradiances alongside the base NEUVAC irradiances:
     fig = plt.figure()
-    pos = plt.imshow(corMatStanBands, aspect='auto', cmap='bwr', vmin=-0.1, vmax=1.0, interpolation='none')
+    pos = plt.imshow(corMatStanBands, aspect='auto', cmap='bwr', vmin=-1.0, vmax=1.0, interpolation='none')
     plt.xlabel('Wavelength Band')
     plt.ylabel('Wavelength Band')
     plt.title('Covariance Matrix (NEUVAC-22 - FISM2)')

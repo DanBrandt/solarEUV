@@ -186,9 +186,17 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
                 P_1 = P_n[0]
                 # Normalized Correlated Perturbation:
                 if bands == 'SOLOMON':
-                    C_j1 = corMat[0, j] # Only consider correlation with the first wavelength bin of the SOLOMON bins!
+                    if j < 5:
+                        C_j1 = corMat[0, j] # 3 # Only consider correlation with the third wavelength bin of the SOLOMON bins!
+                    else:
+                        C_j1 = corMat[5, j] # Only consider correlation with the fifth wavelength bin of the SOLOMON bins!
                 else:
-                    C_j1 = corMat[7, j]  # Only consider correlation with the first wavelength bin (of the EUVAC bins!)
+                    if j < 7:
+                        # Only consider correlation with the third wavelength bin (of the NEUVAC bins!) when bands are below 8.
+                        C_j1 = corMat[0, j] # 2
+                    else:
+                        # Only consider correlation with the first wavelength bin (of the EUVAC bins!) when bands are above 8.
+                        C_j1 = corMat[7, j]
                 N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
                 # Actual Normalized Correlated Perturbation:
                 A_j = STDNeuvacResids[j] * N_j
@@ -211,7 +219,7 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
 
         # Visualize the original correlation matrix alongside the correlation matrix from the perturbations (sanity check):
         cmap = cm.bwr
-        lims = [-0.1, 1]
+        lims = [-1, 1]
         fig = plt.figure(figsize=(10, 6))
         ax1 = fig.add_axes([0.05, 0.1, 0.4, 0.7])
         ax2 = fig.add_axes([0.5, 0.1, 0.4, 0.7])
