@@ -197,7 +197,7 @@ if __name__=="__main__":
     # 5: Do all of the above, but for the SOLOMON version of NEUVAC:
 
     # Generate NEUVAC data:
-    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon)
+    neuvacIrrSolomon, _, _, _ = neuvac.neuvacEUV(F107, F107A, bands='SOLOMON', tableFile=neuvac_tableFile_Solomon) # statsFiles=['corMatStanBands.pkl', 'sigma_NEUVAC_StanBands.pkl'])
 
     # Load in FISM2 STAN BAND data:
     # FISM2 Stan Band Results:

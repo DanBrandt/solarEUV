@@ -103,7 +103,7 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
         F10.7 values.
     :param f107a: ndarray
         81-day center-averaged F10.7 values; must be the same length as f107.
-    :param bandLim: str
+    :param bands: str
         If None or 'NEUVAC', returns irradiances in the GITM Bands. If 'EUVAC', returns them in the 37 bands used by
         EUVAC. If 'SOLOMON', returns them in the 22 bands used by Solomon and Qian.
     :param tableFile: str
@@ -185,7 +185,10 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
                 P_n.append(P_j)
                 P_1 = P_n[0]
                 # Normalized Correlated Perturbation:
-                C_j1 = corMat[7, j] # Only consider correlation with the first wavelength bin (of the EUVAC bins!)
+                if bands == 'SOLOMON':
+                    C_j1 = corMat[0, j] # Only consider correlation with the first wavelength bin of the SOLOMON bins!
+                else:
+                    C_j1 = corMat[7, j]  # Only consider correlation with the first wavelength bin (of the EUVAC bins!)
                 N_j = C_j1 * P_1 + (1.0 - C_j1) * P_j
                 # Actual Normalized Correlated Perturbation:
                 A_j = STDNeuvacResids[j] * N_j
@@ -208,7 +211,7 @@ def neuvacEUV(f107, f107a, bands=None, tableFile=None, statsFiles=None):
 
         # Visualize the original correlation matrix alongside the correlation matrix from the perturbations (sanity check):
         cmap = cm.bwr
-        lims = [-1, 1]
+        lims = [-0.1, 1]
         fig = plt.figure(figsize=(10, 6))
         ax1 = fig.add_axes([0.05, 0.1, 0.4, 0.7])
         ax2 = fig.add_axes([0.5, 0.1, 0.4, 0.7])
