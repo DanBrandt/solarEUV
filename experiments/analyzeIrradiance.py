@@ -152,7 +152,7 @@ if __name__=="__main__":
 
     # ==================================================================================================================
     # 2: Run the empirical models:
-    override = True # If True, recompute everything
+    override = False # If True, recompute everything
     if os.path.isfile(results_dir+'cachedData.pkl') == True and override == False:
         cached=True
         cachedData = toolbox.loadPickle(results_dir+'cachedData.pkl')
@@ -327,20 +327,20 @@ if __name__=="__main__":
     # FIRST (TOP) ROW:
     # 425 A (index 12)
     ax[0, 0].scatter(sortedP, correspondingFism2Irr[sortIndsP, 12], label='FISM2')
-    ax[0, 0].scatter(sortedP, ensemble_average_NeuvacIrr[sortIndsP, 12], label='EUVAC', color='tab:orange')
+    ax[0, 0].scatter(sortedP, ensemble_average_NeuvacIrr[sortIndsP, 12], label='NEUVAC', color='tab:orange')
     ax[0, 0].legend(loc='best', fontsize=16)
     ax[0, 0].set_ylabel('Irradiance (W/m$^2$)', fontsize=20)
     ax[0, 0].set_title('425 $\mathrm{\AA}$', fontsize=20)
     ax[0, 0].tick_params(axis='both', labelsize=17)
     # 725 A (index 24)
     ax[0, 1].scatter(sortedP, correspondingFism2Irr[sortIndsP, 24], label='FISM2')
-    ax[0, 1].scatter(sortedP, ensemble_average_NeuvacIrr[sortIndsP, 24], label='EUVAC', color='tab:orange')
+    ax[0, 1].scatter(sortedP, ensemble_average_NeuvacIrr[sortIndsP, 24], label='NEUVAC', color='tab:orange')
     ax[0, 1].legend(loc='best', fontsize=16)
     ax[0, 1].set_title('725 $\mathrm{\AA}$', fontsize=20)
     ax[0, 1].tick_params(axis='both', labelsize=17)
     # 975 (index 31)
     ax[0, 2].scatter(sortedP, correspondingFism2Irr[sortIndsP, 31], label='FISM2')
-    ax[0, 2].scatter(sortedP, ensemble_average_NeuvacIrr[sortIndsP, 31], label='EUVAC', color='tab:orange')
+    ax[0, 2].scatter(sortedP, ensemble_average_NeuvacIrr[sortIndsP, 31], label='NEUVAC', color='tab:orange')
     ax[0, 2].legend(loc='best', fontsize=16)
     ax[0, 2].set_title('975 $\mathrm{\AA}$', fontsize=20)
     ax[0, 2].tick_params(axis='both', labelsize=17)
@@ -716,7 +716,7 @@ if __name__=="__main__":
     axs[2].set_title('Solar Cycle 20 through Ascending Phase of Solar Cycle 25')
     # Save the figure
     fig.tight_layout()
-    fig.suptitle('Earth-Incident Energy Deposition', fontsize=16, fontweight='bold')
+    fig.suptitle('Integrated Earth-Incident Energy in b37 Bins', fontsize=16, fontweight='bold')
     fig.subplots_adjust(top=0.9)
     plt.savefig(results_dir + 'integrated_energy.png', dpi=300)
 
@@ -1113,7 +1113,7 @@ if __name__=="__main__":
     axs[2].set_title('Solar Cycle 20 through Ascending Phase of Solar Cycle 25')
     # Save the figure
     fig.tight_layout()
-    fig.suptitle('Earth-Incident Energy Deposition', fontsize=16, fontweight='bold')
+    fig.suptitle('Integrated Earth-Incident Energy in b22 Bins', fontsize=16, fontweight='bold')
     fig.subplots_adjust(top=0.9)
     plt.savefig(results_dir + 'integrated_energy_SOLOMON.png', dpi=300)
     #
