@@ -5,13 +5,12 @@
 import numpy as np
 import matplotlib, sys
 matplotlib.use('Qt5Agg')
-import matplotlib.pyplot as plt
 from datetime import datetime
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports:
-from NEUVAC.src import neuvac
+from NEUVAC import neuvac
 from empiricalModels.models.EUVAC import euvac
 from tools.EUV.fism2_process import read_euv_csv_file
 from tools.processIrradiances import obtainFism2
@@ -20,9 +19,9 @@ from tools import toolbox
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Directory Management
-neuvac_directory = '../NEUVAC/src/'
-neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
-neuvac_tableFile_Stan_Bands = '../NEUVAC/src/neuvac_table_stan_bands.txt'
+neuvac_directory = '../NEUVAC/NEUVAC/'
+neuvac_tableFile = '../NEUVAC/NEUVAC/neuvac_table.txt'
+neuvac_tableFile_Stan_Bands = '../NEUVAC/NEUVAC/neuvac_table_stan_bands.txt'
 figures_directory = 'Figures/'
 results_directory = 'Results/'
 fism1_spectra_folder = '../empiricalModels/irradiances/FISM1/'
@@ -138,7 +137,7 @@ if __name__=="__main__":
         # Perform a non-linear fit between F10.7, F10.7B, and FISM2:
         midsS = (wavelengthsFISM2Bands * 10)[:-1]
         neuvacTableS = neuvac.neuvacFit([times, F107, F107B], myIrrTimesFISM2Bands, myIrrDataAllFISM2BandsFixed[:, :-1], wavelengths=midsS,
-                                       label='FISM2S')
+                                        label='FISM2S')
 
         # Print the coefficients to a file:
         with open(neuvac_directory+'neuvac_table_stan_bands.txt', 'w') as output:

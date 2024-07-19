@@ -77,8 +77,8 @@ To import any of the models (while in the top directory 'solarEUV') simply do as
 > solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
 
 Please note the following for the above:
-* neuvac_tableFile: Holds all of the coefficients of the most recent fit of NEUVAC. The file is located here: /NEUVAC/src/neuvac_table.txt
-* corMat.pkl: Holds the normalized correlation matrix for all of the NEUVAC bands. Located in the folder 'experiments'. This is similarly true for 'corMatEUVAC.pkl' and 'corMatHEUVAC.pkl'.
+* neuvac_tableFile: Holds all the coefficients of the most recent fit of NEUVAC. The file is located here: /NEUVAC/src/neuvac_table.txt
+* corMat.pkl: Holds the normalized correlation matrix for all the NEUVAC bands. Located in the folder 'experiments'. This is similarly true for 'corMatEUVAC.pkl' and 'corMatHEUVAC.pkl'.
 * sigma_NEUVAC.pkl: Holds the normalized standard deviation of the residuals with respect to FISM2. Located in the folder 'experiments'. This is similarly true for 'sigma_EUVAC.pkl' and 'sigma_HEUVAC.pkl'.
 
 Running any of the EUV models is straightforward, as shown in the examples below.
@@ -97,7 +97,7 @@ other models.
 In using this code, depending on the module used, proper citations should be given to the original authors responsible
 for developing each model or dataset:
 
-<ins>NEUVAC:</ins> (Publication in preparation)
+<ins>NEUVAC:</ins> [Brandt and Vega, in review](https://essopenarchive.org/users/539460/articles/1139162-neuvac-nonlinear-extreme-ultraviolet-irradiance-model-for-aeronomic-calculations)
 
 <ins>EUVAC:</ins> [Richards, et al. 1994](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/94ja00518)
 

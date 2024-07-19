@@ -13,19 +13,19 @@ from scipy.stats import pearsonr
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports:
-from NEUVAC.src import neuvac
+from NEUVAC import neuvac
 from tools.EUV.fism2_process import read_euv_csv_file
 from tools.processIrradiances import obtainFism2
 from tools import toolbox
 from empiricalModels.models.EUVAC import euvac
-from empiricalModels.models.HEUVAC import heuvac
+
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Directory Management
 euv_folder = '../tools/EUV/'
-neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
-neuvac_tableFile_Solomon = '../NEUVAC/src/neuvac_table_stan_bands.txt'
+neuvac_tableFile = '../NEUVAC/NEUVAC/neuvac_table.txt'
+neuvac_tableFile_Solomon = '../NEUVAC/NEUVAC/neuvac_table_stan_bands.txt'
 figures_folder = 'Uncertainty'
 #-----------------------------------------------------------------------------------------------------------------------
 

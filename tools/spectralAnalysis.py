@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Global Variables
-neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
-neuvac_tableFile_Stan_Bands = '../NEUVAC/src/neuvac_table_stan_bands.txt'
+neuvac_tableFile = '../NEUVAC/NEUVAC/neuvac_table.txt'
+neuvac_tableFile_Stan_Bands = '../NEUVAC/NEUVAC/neuvac_table_stan_bands.txt'
 neuvacStatsFiles = ['../experiments/corMat.pkl', '../experiments/sigma_NEUVAC.pkl']
 neuvacStatsFiles_Stan_Bands = ['../experiments/corMatStanBands.pkl', '../experiments/sigma_NEUVAC_StanBands.pkl']
 euvacStatsFiles = ['../experiments/corMatEUVAC.pkl', '../experiments/sigma_EUVAC.pkl']
@@ -18,7 +18,7 @@ heuvacStatsFiles = ['../experiments/corMatHEUVAC.pkl', '../experiments/sigma_HEU
 
 #-----------------------------------------------------------------------------------------------------------------------
 # Local Imports
-from NEUVAC.src import neuvac
+from NEUVAC import neuvac
 from empiricalModels.models.EUVAC import euvac
 from empiricalModels.models.HEUVAC import heuvac
 #-----------------------------------------------------------------------------------------------------------------------

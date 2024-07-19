@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from tools import toolbox
 from tools.EUV.fism2_process import read_euv_csv_file
 from tools.processIrradiances import obtainFism2
-from NEUVAC.src import neuvac
+from NEUVAC import neuvac
 from empiricalModels.models.EUVAC import euvac
 from empiricalModels.models.HEUVAC import heuvac
 from empiricalModels.models.SOLOMON import solomon
@@ -25,8 +25,8 @@ from tools.spectralAnalysis import irradiance_ensemble
 #-----------------------------------------------------------------------------------------------------------------------
 # Directory Management
 euv_folder = '../tools/EUV/'
-neuvac_tableFile = '../NEUVAC/src/neuvac_table.txt'
-neuvac_tableFile_Stan_Bands = '../NEUVAC/src/neuvac_table_stan_bands.txt'
+neuvac_tableFile = '../NEUVAC/neuvac_table.txt'
+neuvac_tableFile_Stan_Bands = '../NEUVAC/neuvac_table_stan_bands.txt'
 results_dir = 'Results/'
 #-----------------------------------------------------------------------------------------------------------------------
 
@@ -190,7 +190,7 @@ if __name__=="__main__":
                                                                                                         iterations=iterations,
                                                                                                         model='NEUVAC-E') # plt.figure(); plt.fill_between(times, (ensemble_average_NeuvacIrr-ensemble_stddev_NeuvacIrr)[:, 0], (ensemble_average_NeuvacIrr+ensemble_stddev_NeuvacIrr)[:, 0], color='gray', alpha=0.8); plt.plot(times, ensemble_average_NeuvacIrr[:, 0], color='k')
         neuvacIrr, perturbedNeuvacIrr, savedPertsNeuvac, cc2Neuvac = neuvac.neuvacEUV(F107, F107B, bands='EUVAC', tableFile=neuvac_tableFile,
-                                                                          statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
+                                                                                      statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl'])
 
         # Generate EUVAC data:
         # ensemble_EuvacIrr, ensemble_average_EuvacIrr, ensemble_stddev_EuvacIrr = irradiance_ensemble(F107, F107A,
@@ -217,8 +217,8 @@ if __name__=="__main__":
                                                                                                         iterations=iterations,
                                                                                                         model='NEUVAC-S')
         neuvacIrrSolomon, perturbedNeuvacIrrSolomon, savedPertsNeuvacSolomon, cc2NeuvacSolomon = neuvac.neuvacEUV(F107, F107B, bands='SOLOMON',
-                                                                                      tableFile=neuvac_tableFile_Stan_Bands,
-                                                                                      statsFiles=['corMatStanBands.pkl',
+                                                                                                                  tableFile=neuvac_tableFile_Stan_Bands,
+                                                                                                                  statsFiles=['corMatStanBands.pkl',
                                                                                                   'sigma_NEUVAC_StanBands.pkl'])
 
         solomonFluxHFG, solomonIrrHFG = solomon.solomon(F107, F107A, model='HFG')
