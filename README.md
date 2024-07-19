@@ -97,7 +97,7 @@ other models.
 In using this code, depending on the module used, proper citations should be given to the original authors responsible
 for developing each model or dataset:
 
-<ins>NEUVAC:</ins> [Brandt and Vega, in review](https://essopenarchive.org/users/539460/articles/1139162-neuvac-nonlinear-extreme-ultraviolet-irradiance-model-for-aeronomic-calculations)
+<ins>NEUVAC:</ins> [Brandt and Ridley, in review](https://essopenarchive.org/users/539460/articles/1139162-neuvac-nonlinear-extreme-ultraviolet-irradiance-model-for-aeronomic-calculations)
 
 <ins>EUVAC:</ins> [Richards, et al. 1994](https://agupubs.onlinelibrary.wiley.com/doi/abs/10.1029/94ja00518)
 
