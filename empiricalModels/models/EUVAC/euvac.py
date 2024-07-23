@@ -112,7 +112,7 @@ def euvac(F107, F107A, statsFiles=None):
         # Loop across the F10.7 values
         for i in tqdm(range(euvacIrr.shape[0])):
             k = 0
-            # Loop across all of the bands:
+            # Loop across all the bands:
             for j in range(37):
                 # Compute the flux:
                 wav = 0.5 * (euvacTable[j, 2] + euvacTable[j, 1])
@@ -141,7 +141,7 @@ def euvac(F107, F107A, statsFiles=None):
         for i in tqdm(range(euvacIrr.shape[0])):
             k = 0
             P_n = []
-            # Loop across all of the bands:
+            # Loop across all the bands:
             for j in range(37):
                 # Percentage perturbation:
                 P_j = np.random.normal(0, 1.0)

@@ -260,9 +260,9 @@ def rollingAverage(myData, window_length=1, impute_edges=True, center=True):
     :param window_length: int
         The size of the window over which to average.
     :param impute_edges: bool
-        A boolean determining whether or not the edges will be interpolated. Default is True.
+        A boolean determining whether the edges will be interpolated. Default is True.
     :param center: bool
-        A boolean determining whether or not the centered average will be used.
+        A boolean determining whether the centered average will be used.
     :return: rolled, arraylike
         The rolling average data.
     """

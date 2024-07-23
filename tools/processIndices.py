@@ -9,6 +9,7 @@ import numpy as np
 import sys, csaps
 import matplotlib
 matplotlib.use('Qt5Agg')
+import urllib.request
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -73,6 +74,84 @@ def readF107(filename):
 
     return np.asarray(times), np.asarray(f107)
 
+def readCLS(filename):
+    """
+    Load in flare-corrected, Sun-Earth distance adjusted flux values recorded by the Collecte Localisation Satellites
+    (CLS).
+    :param filename: str
+        The location of the data file.
+    :return times: list
+        The datetimes for each data value.
+    :return data: ndarray
+        The solar flux data for F30, F15, F10.7, F8, and F3.2.
+    """
+    times = []
+    precisionVals = []
+    with open(filename, 'r') as myFile:
+        allLines = myFile.readlines()
+        data = np.zeros((len(allLines)-25, 5))
+        i = 0
+        j = 0
+        for line in allLines:
+            if i >= 25:
+                elements = line.split()
+                data[j, :] = np.array([float(elements[5]), float(elements[9]), float(elements[13]), float(elements[17]), float(elements[21])])
+                times.append( datetime(int(elements[0]), int(elements[1]), int(elements[2]), 12) )
+                precisionVals.append( [float(elements[6]), float(elements[10]), float(elements[14]), float(elements[18]), float(elements[22])] )
+                j += 1
+            i += 1
+    # Print the precision:
+    # print('Mean precision values...')
+    # print('F30: '+str(np.nanmean([element[0] for element in precisionVals]))+' sfu') # 6
+    # print('F15: ' + str(np.nanmean([element[1] for element in precisionVals])) + ' sfu') # 8
+    # print('F10.7: ' + str(np.nanmean([element[2] for element in precisionVals])) + ' sfu') # 13
+    # print('F8: ' + str(np.nanmean([element[3] for element in precisionVals])) + ' sfu') # 12
+    # print('F3.2: ' + str(np.nanmean([element[4] for element in precisionVals])) + ' sfu') # 11
+    return times, data
+
+# TODO: Add a function that just repeatedly appends to the end of a file that contains the entire flare-corrected,
+# Sun-Earth distance adjusted F10.7, and queries to get F10.7 just read that file over and over again.
+def getCLSF107(dateStart, dateEnd, truncate=True):
+    """
+    Obtains Sun-Earth distance adjusted, flare-corrected F10.7 data from Collecte Localisation Satellites. Downloads the
+    most recent measurements to a file. Reads the file and extracts the F10.7 values between two dates. Note that if the
+    ending date is less than or equal to the last date in the version of the file that has already been downloaded, the
+    file IS NOT re-downloaded, but simply parsed. Otherwise, the file is redownloaded.
+    :param dateStart: str
+        The starting date in YYYY-MM-DD format.
+    :param dateEnd: str
+        The ending date in YYYY-MM-DD format.
+    :param truncate: bool
+        Controls whether to truncate the data to exclude the most recent 81 days. Defaults is True.
+    """
+    dateTimeStart = datetime.strptime(dateStart, '%Y-%m-%d')
+    dateTimeEnd = datetime.strptime(dateEnd, '%Y-%m-%d')
+    # 1: Check if there is ALREADY a F10.7 file present:
+    fname = '../solarIndices/F107/radio_flux_adjusted_observation.txt'
+    if os.path.isfile(fname):
+        # Read in the file:
+        times, data = readCLS(fname)
+        # Check if the ending date exceeds the ending date in the file. If so, redownloading the file:
+        if times[-1] > dateTimeEnd:
+            out = urllib.request.urlretrieve(
+                'ftp://ftpsedr.cls.fr/pub/previsol/solarflux/observation/radio_flux_adjusted_observation.txt', fname)
+        times, data = readCLS(fname)
+    else:
+        # Download the file:
+        out = urllib.request.urlretrieve('ftp://ftpsedr.cls.fr/pub/previsol/solarflux/observation/radio_flux_adjusted_observation.txt', fname)
+        times, data = readCLS(fname)
+
+    # Compute the 81-day (centered) averaged F10.7 and 54-day averaged (:
+    F107 = data[:, 2]
+    F107A = rollingAverage(F107, window_length=81, impute_edges=True)
+    F107B = rollingAverage(F107, window_length=54, impute_edges=True, center=False)
+    # Extract the values in the desired time range:
+    goodInds = np.where((np.asarray(times) >= dateTimeStart) & (np.asarray(times) <= dateTimeEnd))[0]
+    # Truncation:
+    if truncate:
+        goodInds = goodInds[:-81]
+    return np.asarray(times)[goodInds], np.asarray(F107)[goodInds], np.asarray(F107A)[goodInds], np.asarray(F107B)[goodInds]
+
 def getF107(dateStart, dateEnd):
     """
     Given two dates, automatically download F10.7 data from NASA OMNIWeb.
@@ -100,7 +179,7 @@ def getF107(dateStart, dateEnd):
               'https://omniweb.gsfc.nasa.gov/cgi/nx1.cgi -O '+fileStr
         # Execute the command:
         os.system(cmd)
-    dataFile = fileStr
+    #dataFile = fileStr
 
     # Obtain the data:
     times = []
@@ -138,7 +217,7 @@ def readOMNI(dataFile, headerFile):
     omniLabels: ndarray
         A 1D array of strings of each of the variables in the OMNI data.
     omniDataArray: ndarray
-        A 2D array with all of the OMNI data. The shape is nxm, where n is the number of time samples (each hour) and
+        A 2D array with all the OMNI data. The shape is nxm, where n is the number of time samples (each hour) and
         m is the number of variables collected at each time sample.
     """
     # First, open the header file and obtain the variable names:
@@ -252,18 +331,18 @@ def F107filter(index_times, index_values, window_length=81, n=2):
     badLocsLower = np.where(index_values < lowerStdBoundary)[0]
     badTimesLower = index_times[badLocsLower]
     # Plotting the detected anomalous data:
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.plot(index_times, index_values, label='Original')
-    plt.fill_between(index_times, upperStdBoundary, lowerStdBoundary, label='Standard Deviation Boundary', alpha=0.5)
-    plt.plot(index_times, rollingMeanF107, label='Rolling Mean')
-    # Plot the bad locs for EXCESS error:
-    for i in range(len(badTimesUpper)):
-        plt.axvline(x=badTimesUpper[i], color='k', linestyle='-')
-    # Plot the bad locs for DEFECT error:
-    for i in range(len(badTimesLower)):
-        plt.axvline(x=badTimesLower[i], color='k', linestyle='--')
-    plt.legend(loc='best')
+    # import matplotlib.pyplot as plt
+    # plt.figure()
+    # plt.plot(index_times, index_values, label='Original')
+    # plt.fill_between(index_times, upperStdBoundary, lowerStdBoundary, label='Standard Deviation Boundary', alpha=0.5)
+    # plt.plot(index_times, rollingMeanF107, label='Rolling Mean')
+    # # Plot the bad locs for EXCESS error:
+    # for i in range(len(badTimesUpper)):
+    #     plt.axvline(x=badTimesUpper[i], color='k', linestyle='-')
+    # # Plot the bad locs for DEFECT error:
+    # for i in range(len(badTimesLower)):
+    #     plt.axvline(x=badTimesLower[i], color='k', linestyle='--')
+    # plt.legend(loc='best')
     # IMPUTATION: Replace excesses with n*stddev
     filteredF107[badLocsUpper] = upperStdBoundary[badLocsUpper]
     # IMPUTATION: Replace defecsts with n*stddev

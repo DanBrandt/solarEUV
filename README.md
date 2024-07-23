@@ -52,22 +52,22 @@ of the squared difference between NEUVAC and FISM2 in different bands.
     * _spectralAnalysis.py_: Contains functions for converting between solar spectral irradiance and solar spectral flux.
     * _toolbox.py_: Contains miscellaneous helper functions that mainly focus on directory management, loading and saving data, statistics, and fitting.
 
-To import any of the models (while in the top directory 'solarEUV') simply do as follows:
+To import any of the models, simply do as follows:
 
 <ins>NEUVAC</ins>
-> from NEUVAC.src import neuvac
+> from NEUVAC import neuvac
 > 
 > neuvacIrr, perturbedNeuvacIrr, _, _ = neuvac.neuvacEUV(F107, F107A, tableFile=neuvac_tableFile, statsFiles=['corMat.pkl', 'sigma_NEUVAC.pkl']
 
 <ins>EUVAC</ins>
 > from empiricalModels.models.EUVAC import euvac
 > 
-> euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A, statsFiles=['corMatEUVAC.pkl', 'sigma_EUVAC.pkl'])
+> euvacFlux, euvacIrr, _, _, _ = euvac.euvac(F107, F107A)
 
 <ins>HEUVAC</ins>
 > from empiricalModels.models.HEUVAC import heuvac
 > 
-> heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107A, torr=True, statsFiles=['corMatHEUVAC.pkl', 'sigma_HEUVAC.pkl'])
+> heuvac_wav, heuvacFlux, heuvacIrr, _, _, _ = heuvac.heuvac(F107, F107A, torr=True)
 
 <ins>SOLOMON</ins>
 > from empiricalModels.models.SOLOMON import solomon
@@ -77,19 +77,17 @@ To import any of the models (while in the top directory 'solarEUV') simply do as
 > solomonFluxEUVAC, solomonIrrEUVAC = solomon.solomon(F107, F107A, model='EUVAC')
 
 Please note the following for the above:
-* neuvac_tableFile: Holds all the coefficients of the most recent fit of NEUVAC. The file is located here: /NEUVAC/src/neuvac_table.txt
+* neuvac_tableFile: Holds all the coefficients of the most recent fit of NEUVAC. The file is located here: /NEUVAC/neuvac_table.txt
 * corMat.pkl: Holds the normalized correlation matrix for all the NEUVAC bands. Located in the folder 'experiments'. This is similarly true for 'corMatEUVAC.pkl' and 'corMatHEUVAC.pkl'.
 * sigma_NEUVAC.pkl: Holds the normalized standard deviation of the residuals with respect to FISM2. Located in the folder 'experiments'. This is similarly true for 'sigma_EUVAC.pkl' and 'sigma_HEUVAC.pkl'.
 
 Running any of the EUV models is straightforward, as shown in the examples below.
 
-# Example 1: EUV Irradiance Time Series
+# Examples
 
-[Forthcoming]
+We encourage you to peruse the examples folder as a guide for calling the different irradiance models and displaying 
+outputs.
 
-# Example 2: Running Irradiance Ensembles
-
-[Forthcoming]
 Due to the unique construction of NEUVAC, at present, we only recommend running ensembles for NEUVAC, and not any of the
 other models.
 
