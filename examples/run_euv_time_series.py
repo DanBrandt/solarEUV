@@ -1,11 +1,11 @@
 # This example focuses on creating simple irradiance time series for NEUVAC.
 
 # Top level imports
-# import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('Qt5Agg')
 from tools import processIndices
+# import numpy as np
 
 # Local imports
 from NEUVAC import neuvac

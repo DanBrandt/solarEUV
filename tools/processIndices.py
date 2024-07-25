@@ -109,8 +109,6 @@ def readCLS(filename):
     # print('F3.2: ' + str(np.nanmean([element[4] for element in precisionVals])) + ' sfu') # 11
     return times, data
 
-# TODO: Add a function that just repeatedly appends to the end of a file that contains the entire flare-corrected,
-# Sun-Earth distance adjusted F10.7, and queries to get F10.7 just read that file over and over again.
 def getCLSF107(dateStart, dateEnd, truncate=True):
     """
     Obtains Sun-Earth distance adjusted, flare-corrected F10.7 data from Collecte Localisation Satellites. Downloads the

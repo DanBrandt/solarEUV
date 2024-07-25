@@ -10,8 +10,8 @@ import numpy as np
 from scipy.optimize import curve_fit, minimize
 import matplotlib.pyplot as plt
 from datetime import timedelta
-from tqdm import tqdm
 import matplotlib.cm as cm
+import os, os.path
 #-----------------------------------------------------------------------------------------------------------------------
 
 #-----------------------------------------------------------------------------------------------------------------------
@@ -359,4 +359,56 @@ def neuvacFit(f107Data, irrTimes, irrData, wavelengths, label=None, constrain=Fa
             plt.savefig('Fitting/'+fileLoc+'/'+'NEUVAC_fit_'+str(wavelengths[j]).replace(',','_')+ '_A.png', dpi=300)
     fitParams = np.asarray(fitParams)
     return fitParams
+
+def gitmNEUVAC(f107times, f107, f107b):
+    """
+    Write NEUVAC irradiances to a file for ingestion directly into the Global Ionosphere-Thermosphere Model. This code
+    writes the data to 59 wavelength bins.
+    :param f107times: arraylike
+        The timestamps for F10.7 values. Individual values must be datetimes.
+    :param f107: arraylike
+        The F10.7 values. Individual values must be floats.
+    :param f107b: arraylike
+        The F10.7 values averaged in a 54-day backwards-looking window. Individual values must be floats.
+    :return outfile: string
+        The name of the output file.
+    """
+    print('Writing a GITM file with NEUVAC irradiances between '+str(f107times[0])+' and '+str(f107times[-1])+'...')
+
+    neuvacIrr, _, _, _ = neuvacEUV(f107, f107b)
+
+    def numStr(num):
+        if int(num) < 10:
+            return ' '+str(int(num))
+        else:
+            return str(int(num))
+
+    def safe_open_w(path):
+        ''' Open "path" for writing, creating any parent directories as needed.
+        (https://stackoverflow.com/questions/23793987/write-a-file-to-a-directory-that-doesnt-exist)
+        '''
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        return open(path, 'w')
+
+    out_dir = '../NEUVAC/irradiances/'
+    outfile = out_dir + 'neuvac_euv_'+str(f107times[0])[:10]+'_to_'+str(f107times[-1])[:10]+'.txt'
+    with safe_open_w(outfile) as output:
+        # Write the header information:
+        output.write("#START\n")
+        # Write the irradiances themselves...
+        firstLine = ['%.6g'%(element) for element in neuvacIrr[0, :]]
+        firstLine_joined = ' '.join(firstLine)
+        # The first line should always be a duplicate of the first line of data, but starting at UTC=00:00 of the first date:
+        output.write(' '+str(f107times[0].year)+' '+numStr(f107times[0].month)+' '+numStr(f107times[0].day)+'  0  0  0 '+firstLine_joined+'\n')
+        # The rest of the lines can be straight from the data:
+        for i in range(neuvacIrr.shape[0]):
+            currentLine_joined = ' '.join(['%.6g'%(element) for element in neuvacIrr[i, :]])
+            output.writelines(' '+str(f107times[i].year)+' '+numStr(f107times[i].month)+' '+numStr(f107times[i].day)+' '+numStr(f107times[i].hour)+'  0  0 '+currentLine_joined+'\n')
+        # The last line should occur 12 hours from the last datapoint, but have duplicate values there:
+        lastLine_joined = ' '.join(['%.6g'%(element) for element in neuvacIrr[-1, :]])
+        lastTime = f107times[-1] + timedelta(hours=12)
+        output.write(' '+str(lastTime.year)+' '+numStr(lastTime.month)+' '+numStr(lastTime.day)+'  0  0  0 '+lastLine_joined+'\n')
+
+    print('Wrote NEUVAC EUV irradiances to the following file: '+outfile)
+    return outfile
 #-----------------------------------------------------------------------------------------------------------------------

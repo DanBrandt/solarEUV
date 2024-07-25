@@ -856,7 +856,7 @@ def newbins(wavelengths, data, bins, zero=False, interpolation=False):
     :param zero: bool
         Controls whether a wavelength bin is 'zeroed' out after it is considered. Default is False.
     :param interpolation: bool
-        Controls whether or not interpolation or 4-nm centered windowed averaging is used to handle singular emission
+        Controls whether interpolation or 4-nm centered windowed averaging is used to handle singular emission
         lines. Default is False, corresponding to the windowed averaging.
     :return newWaves: arraylike
         The wavelength boundaries of the new binning scheme.
@@ -881,7 +881,7 @@ def newbins(wavelengths, data, bins, zero=False, interpolation=False):
         if lowBins[i] == highBins[i]:
             # idx, val = find_nearest(wavelengths, lowBins[i] / 10.)
 
-            # Simply assign the the values at that index to the new bin values:
+            # Simply assign the values at that index to the new bin values:
             # newData[:, i] = data[:, fismLines[j]] * nativeBinWidth
 
             if interpolation == False:
